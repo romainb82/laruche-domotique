@@ -1,0 +1,510 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		17F853EE32E00C8AD9AB2772 /* MaisonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50218D2C089858D57243E19D /* MaisonApp.swift */; };
+		2301889DAD208D8D58837B75 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595B073770A199A90E9D1E5D /* Theme.swift */; };
+		2A02907C25C4949392AE195E /* AuditAccessibilite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCEDF6B12FE1E903C391FA8 /* AuditAccessibilite.swift */; };
+		319ED2E9FA73AB2242EF7297 /* SensorTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B3BB46FA6AF282B8138202 /* SensorTile.swift */; };
+		51E418695D3A5872B9E2BE14 /* HouseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C759EE323913D02527333D8 /* HouseView.swift */; };
+		66232AE2E610D3203D3FB936 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 690B1B45FA6CED7BC4CBF6DA /* Assets.xcassets */; };
+		6B1083BC3ACD06A030AB69AB /* LightTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E87B975A647668FD6A0A6E /* LightTile.swift */; };
+		8227DEF2C76F99A687E7518C /* CoverTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733C48593672DAD8461B3567 /* CoverTile.swift */; };
+		95EA85C3ADF28BBDD0B2EF63 /* ClimateTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948F1A01C7CE02A7A3A2D729 /* ClimateTile.swift */; };
+		96DEE42E7BAC1D8B0C6DF780 /* DeviceTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BEE9784BE38BC69089D4F6B /* DeviceTile.swift */; };
+		9F3BBFFC229866325FCC579E /* RadialDial.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5778019FF4B8F20F0805080 /* RadialDial.swift */; };
+		A02B682DD2337CF0818A7B7C /* HousePlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D371B84A8D73B67D27984B06 /* HousePlanView.swift */; };
+		CA91840B4AF522C368148270 /* RoomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FD420F1AD981334A21CF50 /* RoomView.swift */; };
+		D2D528D013B5FE3620236A0D /* DomoKit in Frameworks */ = {isa = PBXBuildFile; productRef = EDA1FD080AF796E433EC5C25 /* DomoKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A699F0E282FB8F5EB3F8A812 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 407938ADFAB7799BCDBEC6C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 62BB7B7C4E479CBF12CEF402;
+			remoteInfo = Maison;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0BCEDF6B12FE1E903C391FA8 /* AuditAccessibilite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditAccessibilite.swift; sourceTree = "<group>"; };
+		11B3BB46FA6AF282B8138202 /* SensorTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorTile.swift; sourceTree = "<group>"; };
+		19FD420F1AD981334A21CF50 /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
+		35157A9EAAC19FD1C633D6E3 /* Maison.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Maison.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BEE9784BE38BC69089D4F6B /* DeviceTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTile.swift; sourceTree = "<group>"; };
+		50218D2C089858D57243E19D /* MaisonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaisonApp.swift; sourceTree = "<group>"; };
+		53E87B975A647668FD6A0A6E /* LightTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightTile.swift; sourceTree = "<group>"; };
+		595B073770A199A90E9D1E5D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		5E6C690B0C2C6D19A63CDBD4 /* DomoKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DomoKit; path = ../DomoKit; sourceTree = SOURCE_ROOT; };
+		690B1B45FA6CED7BC4CBF6DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		733C48593672DAD8461B3567 /* CoverTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverTile.swift; sourceTree = "<group>"; };
+		7C759EE323913D02527333D8 /* HouseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseView.swift; sourceTree = "<group>"; };
+		948F1A01C7CE02A7A3A2D729 /* ClimateTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimateTile.swift; sourceTree = "<group>"; };
+		C5778019FF4B8F20F0805080 /* RadialDial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialDial.swift; sourceTree = "<group>"; };
+		D371B84A8D73B67D27984B06 /* HousePlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HousePlanView.swift; sourceTree = "<group>"; };
+		DD1EBC274942703654B12C00 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E03DA4B0BA819A9BDE1E64D1 /* MaisonUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MaisonUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F6B439C4ADD131B0C25056B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D2D528D013B5FE3620236A0D /* DomoKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		15C86DCE1654F95975C6505F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D371B84A8D73B67D27984B06 /* HousePlanView.swift */,
+				7C759EE323913D02527333D8 /* HouseView.swift */,
+				19FD420F1AD981334A21CF50 /* RoomView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		2C7AF56B3140DF8D2654F053 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5E6C690B0C2C6D19A63CDBD4 /* DomoKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		3FD2A01F5F3991347E786238 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				690B1B45FA6CED7BC4CBF6DA /* Assets.xcassets */,
+				DD1EBC274942703654B12C00 /* Info.plist */,
+				50218D2C089858D57243E19D /* MaisonApp.swift */,
+				C5778019FF4B8F20F0805080 /* RadialDial.swift */,
+				595B073770A199A90E9D1E5D /* Theme.swift */,
+				4AEB67E49DEADFE53DF4FFE8 /* Tiles */,
+				15C86DCE1654F95975C6505F /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		4AEB67E49DEADFE53DF4FFE8 /* Tiles */ = {
+			isa = PBXGroup;
+			children = (
+				948F1A01C7CE02A7A3A2D729 /* ClimateTile.swift */,
+				733C48593672DAD8461B3567 /* CoverTile.swift */,
+				3BEE9784BE38BC69089D4F6B /* DeviceTile.swift */,
+				53E87B975A647668FD6A0A6E /* LightTile.swift */,
+				11B3BB46FA6AF282B8138202 /* SensorTile.swift */,
+			);
+			path = Tiles;
+			sourceTree = "<group>";
+		};
+		9A1341BF4A07CD6A0020957D /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				0BCEDF6B12FE1E903C391FA8 /* AuditAccessibilite.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		A581CE43B26EEF7498369777 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				35157A9EAAC19FD1C633D6E3 /* Maison.app */,
+				E03DA4B0BA819A9BDE1E64D1 /* MaisonUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E2FF9428E9CD2B36A3B467D9 = {
+			isa = PBXGroup;
+			children = (
+				2C7AF56B3140DF8D2654F053 /* Packages */,
+				3FD2A01F5F3991347E786238 /* Sources */,
+				9A1341BF4A07CD6A0020957D /* UITests */,
+				A581CE43B26EEF7498369777 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		62BB7B7C4E479CBF12CEF402 /* Maison */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9335255C6BB5A660A941A859 /* Build configuration list for PBXNativeTarget "Maison" */;
+			buildPhases = (
+				CC0DBB6E55EAF353C56DE634 /* Sources */,
+				626684C97D39A0B6DB2E92C6 /* Resources */,
+				F6B439C4ADD131B0C25056B1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Maison;
+			packageProductDependencies = (
+				EDA1FD080AF796E433EC5C25 /* DomoKit */,
+			);
+			productName = Maison;
+			productReference = 35157A9EAAC19FD1C633D6E3 /* Maison.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A97DD6544E06FC7B8D6F43CD /* MaisonUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 83711114C2BB507321C7511A /* Build configuration list for PBXNativeTarget "MaisonUITests" */;
+			buildPhases = (
+				AD722872A4DEF5912C193301 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B39CA9456E9187CB4049DEBD /* PBXTargetDependency */,
+			);
+			name = MaisonUITests;
+			packageProductDependencies = (
+			);
+			productName = MaisonUITests;
+			productReference = E03DA4B0BA819A9BDE1E64D1 /* MaisonUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		407938ADFAB7799BCDBEC6C9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					A97DD6544E06FC7B8D6F43CD = {
+						TestTargetID = 62BB7B7C4E479CBF12CEF402;
+					};
+				};
+			};
+			buildConfigurationList = 8B84EF93FE9BCA7114FBF5C8 /* Build configuration list for PBXProject "Maison" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E2FF9428E9CD2B36A3B467D9;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				15AB9327D3A6594D07B9F115 /* XCLocalSwiftPackageReference "../DomoKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A581CE43B26EEF7498369777 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				62BB7B7C4E479CBF12CEF402 /* Maison */,
+				A97DD6544E06FC7B8D6F43CD /* MaisonUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		626684C97D39A0B6DB2E92C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				66232AE2E610D3203D3FB936 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AD722872A4DEF5912C193301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A02907C25C4949392AE195E /* AuditAccessibilite.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0DBB6E55EAF353C56DE634 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				95EA85C3ADF28BBDD0B2EF63 /* ClimateTile.swift in Sources */,
+				8227DEF2C76F99A687E7518C /* CoverTile.swift in Sources */,
+				96DEE42E7BAC1D8B0C6DF780 /* DeviceTile.swift in Sources */,
+				A02B682DD2337CF0818A7B7C /* HousePlanView.swift in Sources */,
+				51E418695D3A5872B9E2BE14 /* HouseView.swift in Sources */,
+				6B1083BC3ACD06A030AB69AB /* LightTile.swift in Sources */,
+				17F853EE32E00C8AD9AB2772 /* MaisonApp.swift in Sources */,
+				9F3BBFFC229866325FCC579E /* RadialDial.swift in Sources */,
+				CA91840B4AF522C368148270 /* RoomView.swift in Sources */,
+				319ED2E9FA73AB2242EF7297 /* SensorTile.swift in Sources */,
+				2301889DAD208D8D58837B75 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B39CA9456E9187CB4049DEBD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 62BB7B7C4E479CBF12CEF402 /* Maison */;
+			targetProxy = A699F0E282FB8F5EB3F8A812 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		29598E3398EA29375A53746C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		6603908FD24A2D88D3105D17 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fr.webpremiere.maison.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Maison;
+			};
+			name = Release;
+		};
+		6A07B9167964ABEB6E7FCF17 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Sources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "La Ruche";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.webpremiere.maison;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9764DA2DEEAE1C34440323D9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C8E3691F5909D3AD07C267C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = fr.webpremiere.maison.uitests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Maison;
+			};
+			name = Debug;
+		};
+		C968B82E31EE65D910651953 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = Sources/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "La Ruche";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = fr.webpremiere.maison;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		83711114C2BB507321C7511A /* Build configuration list for PBXNativeTarget "MaisonUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C8E3691F5909D3AD07C267C6 /* Debug */,
+				6603908FD24A2D88D3105D17 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8B84EF93FE9BCA7114FBF5C8 /* Build configuration list for PBXProject "Maison" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9764DA2DEEAE1C34440323D9 /* Debug */,
+				29598E3398EA29375A53746C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9335255C6BB5A660A941A859 /* Build configuration list for PBXNativeTarget "Maison" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6A07B9167964ABEB6E7FCF17 /* Debug */,
+				C968B82E31EE65D910651953 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		15AB9327D3A6594D07B9F115 /* XCLocalSwiftPackageReference "../DomoKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../DomoKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EDA1FD080AF796E433EC5C25 /* DomoKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DomoKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 407938ADFAB7799BCDBEC6C9 /* Project object */;
+}

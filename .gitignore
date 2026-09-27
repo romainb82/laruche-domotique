@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.log
+data/
+.DS_Store
+.env
+
+# Artefacts de compilation Swift. Ils pesaient 130 Mo et faisaient échouer le
+# push : GitHub coupe bien avant. Ce sont des caches de modules et des bases
+# d'index, régénérés à chaque compilation.
+.build/
+DerivedData/
+*.xcuserdatad/
+
+# Copies de sauvegarde ponctuelles.
+*.bak

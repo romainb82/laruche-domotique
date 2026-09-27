@@ -1,0 +1,5 @@
+{
+  "env": {
+    "ECC_DISABLED_HOOKS": "stop:check-console-log,pre:observe:continuous-learning"
+  }
+}

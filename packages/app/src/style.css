@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Identite : une maison en plein jour.
+ * Fond papier chaud, ambre pour la lumiere allumee, bleu froid pour le jour qui
+ * entre par les volets. Theme clair unique — assume, pas subi.
+ */
+:root {
+  --c-ground: 250 247 243;
+  --c-surface: 255 255 255;
+  --c-raised: 244 240 234;
+  --c-line: 226 219 210;
+  --c-ink: 28 24 21;
+  --c-soft: 116 108 100;
+  /* Relevé à 2,51:1 sur fond papier — très en dessous des 4,5:1 exigés.
+     Cette teinte porte toutes les étiquettes en capitales de l'interface. */
+  --c-faint: 114 108 102;
+  --c-glow: 200 120 25;
+  --c-glow-deep: 150 86 12;
+  --c-jour: 74 126 166;
+  /* Le bleu porte aussi du texte ('fermeture…', position). Le remplissage n'a
+     besoin que de 3:1, le texte de 4,5:1 — d'où deux jetons distincts. */
+  --c-jour-deep: 67 113 149;
+  --c-ok: 44 110 82;
+  --c-warn: 154 108 8;
+  /*
+   * L'ambre d'avertissement sur son PROPRE fond teinté : le bandeau pose
+   * `bg-warn/8`, ce qui assombrit le papier juste assez pour faire tomber le
+   * texte à 4,38:1. Mesuré. Cette variante repasse à 5,2:1.
+   */
+  --c-warn-deep: 130 91 7;
+  --c-crit: 168 56 44;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-ground text-ink antialiased;
+    /* La barre du bas ne doit pas manger le contenu sur iPhone. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  button { touch-action: manipulation; }
+  :focus-visible { @apply outline-none ring-2 ring-glow ring-offset-2 ring-offset-ground; }
+}
+
+@layer components {
+  /* Visible par les lecteurs d'ecran uniquement. */
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .label {
+    @apply font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-faint;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+  .press {
+    @apply transition-transform duration-150 ease-swift active:scale-[0.97];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

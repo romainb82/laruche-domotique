@@ -1,0 +1,47 @@
+{
+  "name": "domotique",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/app"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @domo/shared",
+    "dev": "node scripts/libere-ports.mjs && npm run build:shared && concurrently -n serveur,app -c yellow,cyan \"npm:dev:server\" \"npm:dev:app\"",
+    "dev:server": "npm run dev -w @domo/server",
+    "dev:app": "npm run dev -w @domo/app",
+    "build": "npm run build:shared && npm run build -w @domo/server && npm run build -w @domo/app",
+    "typecheck": "npm run typecheck -w @domo/shared && npm run typecheck -w @domo/server && npm run typecheck -w @domo/app",
+    "verifier": "node scripts/verifier-api.mjs && node scripts/verifier-cerveau.mjs && node scripts/verifier-http.mjs && node scripts/verifier-modbus.mjs && node scripts/verifier-homekit.mjs && node scripts/verifier-scenes.mjs && node scripts/verifier-planificateur.mjs && node scripts/verifier-energie.mjs && node scripts/verifier-cameras.mjs && node scripts/verifier-ui.mjs && node scripts/verifier-ui-cerveau.mjs",
+    "verifier:api": "node scripts/verifier-api.mjs",
+    "verifier:ui": "node scripts/verifier-ui.mjs",
+    "verifier:cerveau": "node scripts/verifier-cerveau.mjs",
+    "libere-ports": "node scripts/libere-ports.mjs",
+    "verifier:http": "node scripts/verifier-http.mjs",
+    "audit:a11y": "node scripts/audit-a11y.mjs",
+    "audit:a11y:ios": "xcodebuild test -project packages/ios/Maison/Maison.xcodeproj -scheme Maison -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:MaisonUITests",
+    "verifier:modbus": "node scripts/verifier-modbus.mjs",
+    "verifier:homekit": "node scripts/verifier-homekit.mjs",
+    "verifier:planificateur": "node scripts/verifier-planificateur.mjs",
+    "verifier:energie": "node scripts/verifier-energie.mjs",
+    "verifier:cameras": "node scripts/verifier-cameras.mjs",
+    "camera-factice": "node scripts/camera-factice.mjs",
+    "verifier:scenes": "node scripts/verifier-scenes.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "aedes": "^0.51.3",
+    "axe-core": "^4.13.0",
+    "concurrently": "^9.1.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "bonjour-service": "^1.4.4"
+  }
+}
