@@ -1,0 +1,25 @@
+{
+  "name": "La Ruche",
+  "short_name": "La Ruche",
+  "description": "Pilotez les éclairages, les volets, le chauffage, l'énergie et les caméras de la maison.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FAF7F3",
+  "theme_color": "#FAF7F3",
+  "categories": ["utilities", "lifestyle"],
+  "icons": [
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Scénarios", "url": "/scenarios", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Énergie", "url": "/energie", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] },
+    { "name": "Caméras", "url": "/securite", "icons": [{ "src": "/icone-192.png", "sizes": "192x192" }] }
+  ]
+}

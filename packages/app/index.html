@@ -7,6 +7,26 @@
     <title>La Ruche</title>
     <!-- La ruche, en SVG embarqué : pas de fichier à servir, net à toute taille. -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%231C1815'/><path d='M4.6 19C4.6 11 7.7 6.2 12 6.2S19.4 11 19.4 19Z' fill='%23E7A13A'/><g stroke='%231C1815' stroke-width='.9' fill='none'><path d='M3 16.5h18'/><path d='M3 13.5h18'/><path d='M4 10.5h16'/><path d='M6 8h12'/></g><path d='M10.6 19a1.4 1.4 0 0 1 2.8 0Z' fill='%231C1815'/></svg>" />
+
+    <meta name="description" content="La maison du 9 rue de la Jourdanelle : éclairages, volets, chauffage, énergie et caméras." />
+
+    <!--
+      La PWA. Sur iOS, « Sur l'écran d'accueil » suffit à obtenir une vraie
+      application plein écran : ces quatre balises `apple-*` sont ce qui
+      l'alimente, le manifeste W3C n'étant lu que partiellement par Safari.
+      Elles fonctionnent en HTTP simple, contrairement au service worker.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="La Ruche" />
+    <!--
+      `default` et non `black-translucent` : ce dernier fait passer le contenu
+      SOUS l'heure et la batterie, ce qui demanderait une marge haute
+      `safe-area-inset-top` que la mise en page ne pose pas aujourd'hui.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="app"></div>
