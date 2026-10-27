@@ -2,7 +2,7 @@
  * Audit d'accessibilite mesure, sur l'application en fonctionnement.
  *
  * Complementaire a une revue de code : axe-core evalue le DOM reellement
- * produit, donc il voit ce que le code seul ne montre pas — contrastes
+ * produit, donc il voit ce que le code seul ne montre pas : contrastes
  * calcules, ordre de tabulation, roles effectifs.
  *
  * On mesure aussi deux choses qu'axe ne couvre pas et qui comptent ici :
@@ -11,6 +11,10 @@
  */
 import { chromium } from 'playwright';
 import { AxeBuilder } from '@axe-core/playwright';
+
+import { connecterNavigateur, ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+const { jeton } = await ouvrirSession();
 
 const BASE = 'http://localhost:5173';
 
@@ -35,6 +39,10 @@ const ECRANS = [
   { nom: 'Matériel', url: '/parametrage', onglet: 'Matériel' },
   { nom: 'Sécurité', url: '/securite' },
   { nom: 'Réglage caméras', url: '/parametrage', onglet: 'Caméras' },
+  // La seule page qu'on voit AVANT d'avoir un compte. Elle merite l'audit
+  // autant que les autres : c'est celle que tout le monde traverse, et la
+  // seule ou du texte clair se pose sur un fond sombre.
+  { nom: 'Connexion', url: '/connexion', sansSession: true },
 ];
 
 const TAILLES = [
@@ -54,9 +62,20 @@ for (const taille of TAILLES) {
   const contexte = await navigateur.newContext({
     viewport: { width: taille.width, height: taille.height },
   });
-  const page = await contexte.newPage();
+  const pageConnectee = await contexte.newPage();
+  await connecterNavigateur(pageConnectee, jeton);
 
+  // La page de connexion s'audite SANS session : avec le cookie, la garde du
+  // routeur renvoie aussitot vers l'accueil, et on auditerait l'accueil deux
+  // fois en croyant verifier la connexion.
+  const anonyme = await navigateur.newContext({
+    viewport: { width: taille.width, height: taille.height },
+  });
+  const pageAnonyme = await anonyme.newPage();
+
+  let page;
   for (const ecran of ECRANS) {
+    page = ecran.sansSession ? pageAnonyme : pageConnectee;
     await page.goto(BASE + ecran.url, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1800);
 
@@ -173,14 +192,14 @@ const regles = [...parRegle.values()].sort(
 console.log('=== VIOLATIONS axe-core (WCAG 2.2 AA) ===');
 if (!regles.length) console.log('  aucune');
 for (const r of regles) {
-  console.log(`\n  [${(r.impact ?? '?').toUpperCase()}] ${r.id} — ${r.total} élément(s)`);
+  console.log(`\n  [${(r.impact ?? '?').toUpperCase()}] ${r.id} : ${r.total} élément(s)`);
   console.log(`    ${r.description}`);
   console.log(`    écrans : ${[...r.ecrans].join(', ')}`);
   if (r.cible) console.log(`    ex. : ${r.cible}`);
   if (r.exemple) console.log(`          ${r.exemple.replace(/\s+/g, ' ')}`);
 }
 
-console.log('\n=== CIBLES TACTILES sous 24×24 px (WCAG 2.2 — 2.5.8) ===');
+console.log('\n=== CIBLES TACTILES sous 24×24 px (WCAG 2.2 : 2.5.8) ===');
 const vues = new Set();
 let petites = 0;
 for (const b of bilan.filter((x) => x.largeur === 390)) {
@@ -192,7 +211,7 @@ for (const b of bilan.filter((x) => x.largeur === 390)) {
     console.log(`  ${p.taille.padEnd(9)} <${p.balise}${p.role ? ` role=${p.role}` : ''}> ${p.texte || '(sans nom)'}`);
   }
 }
-if (!petites) console.log('  aucune — toutes les cibles atteignent le minimum');
+if (!petites) console.log('  aucune : toutes les cibles atteignent le minimum');
 
 console.log('\n=== CLAVIER ET ANNONCES ===');
 for (const b of bilan.filter((x) => x.largeur === 390)) {

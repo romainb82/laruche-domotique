@@ -108,6 +108,7 @@ export const useHouse = defineStore('house', () => {
       body: JSON.stringify(command),
     });
     if (!res.ok) {
+      if (await siSessionExpiree(res)) throw new Error('session expirée');
       const body = await res.json().catch(() => ({ error: 'Commande refusée' }));
       error.value = body.error ?? 'Commande refusée';
       throw new Error(error.value ?? 'erreur');
@@ -149,8 +150,36 @@ export const useHouse = defineStore('house', () => {
   };
 });
 
+/**
+ * Une session expirée ramène à la page de connexion.
+ *
+ * Sans ça, une session qui meurt pendant la nuit afficherait « serveur
+ * injoignable » au réveil, alors que le serveur va parfaitement bien et qu'il
+ * suffit de retaper son mot de passe. Le mensonge serait durable : rien ne
+ * viendrait jamais le corriger.
+ *
+ * L'import est fait ICI et pas en tête de fichier, volontairement : le magasin
+ * des comptes importe lui aussi des choses de l'application, et deux modules
+ * qui s'importent l'un l'autre au chargement ne s'initialisent pas toujours
+ * dans l'ordre qu'on croit.
+ */
+async function siSessionExpiree(res: Response): Promise<boolean> {
+  if (res.status !== 401) return false;
+  const [{ useAuth }, { router }] = await Promise.all([
+    import('@/stores/auth'),
+    import('@/router'),
+  ]);
+  useAuth().expiree();
+  const ou = router.currentRoute.value.fullPath;
+  await router.replace({ path: '/connexion', query: ou === '/' ? {} : { redirect: ou } });
+  return true;
+}
+
 async function api<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url} → ${res.status}`);
+  if (!res.ok) {
+    await siSessionExpiree(res);
+    throw new Error(`${url} → ${res.status}`);
+  }
   return (await res.json()) as T;
 }

@@ -4,6 +4,10 @@
  */
 import { chromium } from 'playwright';
 
+import { connecterNavigateur, ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+const { jeton } = await ouvrirSession();
+
 const B = 'http://localhost:3001';
 const j = async (u, o) => { const r = await fetch(B + u, o); return [r.status, await r.json().catch(() => null)]; };
 const cmd = (id, c) => fetch(`${B}/api/devices/${id}/command`,
@@ -17,7 +21,7 @@ const pause = (ms) => new Promise(r => setTimeout(r, ms));
 // enregistrer une configuration, ce qui recharge le cerveau et remet les etats
 // a plat ; des commandes envoyees pendant ce rechargement sont ecrasees. C'est
 // ce qui faisait echouer ce test une fois sur dix, en suite complete
-// seulement — jamais lance seul.
+// seulement : jamais lance seul.
 await pause(2000);
 
 // Les lampes seules sont reessayees : un volet met vingt secondes a parcourir
@@ -49,6 +53,7 @@ await pause(24000);
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1512, height: 1000 } });
+await connecterNavigateur(p, jeton);
 const err = [];
 p.on('pageerror', e => err.push(e.message));
 

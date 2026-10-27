@@ -1,7 +1,47 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
-import type { ActionLogEntry, ActionOrigin, Command, HouseConfig, Metric } from '@domo/shared';
+import type {
+  ActionLogEntry,
+  ActionOrigin,
+  Command,
+  Compte,
+  HouseConfig,
+  Metric,
+  Role,
+} from '@domo/shared';
+
+/** Une ligne de la table `compte`, telle que SQLite la rend. */
+interface LigneCompte {
+  id: string;
+  identifiant: string;
+  nom: string;
+  role: string;
+  hash: string;
+  cree_le: number;
+  derniere_connexion: number | null;
+  actif: number;
+}
+
+/**
+ * De la ligne SQLite au compte du domaine.
+ *
+ * Deux conversions que SQLite impose : il n'a pas de booléen (d'où `actif`
+ * stocké en 0/1) et les dates sont rangées en millisecondes pour être
+ * comparables sans fonction, alors que tout le reste du projet échange de
+ * l'ISO 8601.
+ */
+function versCompte(r: LigneCompte): Compte {
+  return {
+    id: r.id,
+    identifiant: r.identifiant,
+    nom: r.nom,
+    role: r.role as Role,
+    creeLe: new Date(r.cree_le).toISOString(),
+    derniereConnexion: r.derniere_connexion ? new Date(r.derniere_connexion).toISOString() : null,
+    actif: r.actif === 1,
+  };
+}
 
 /**
  * Stockage local.
@@ -57,7 +97,7 @@ export class Db {
       -- Le journal des scènes. Il répond à une question que le journal des
       -- actions ne sait pas traiter : « pourquoi le réveil n'est-il pas
       -- parti ce matin ». Une scène refusée n'émet aucune commande, donc
-      -- elle ne laisse aucune trace ailleurs — d'où la colonne refus.
+      -- elle ne laisse aucune trace ailleurs, d'où la colonne refus.
       CREATE TABLE IF NOT EXISTS scene_run (
         at       INTEGER NOT NULL,
         scene_id TEXT    NOT NULL,
@@ -68,7 +108,207 @@ export class Db {
         refus    TEXT
       );
       CREATE INDEX IF NOT EXISTS scene_run_at ON scene_run (at DESC);
+
+      -- Les comptes. L'identifiant est unique SANS tenir compte de la casse :
+      -- « Romain » et « romain » doivent être la même personne, sinon deux
+      -- comptes homonymes cohabitent et personne ne comprend pourquoi le mot
+      -- de passe « ne marche plus ».
+      CREATE TABLE IF NOT EXISTS compte (
+        id                 TEXT    PRIMARY KEY,
+        identifiant        TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+        nom                TEXT    NOT NULL,
+        role               TEXT    NOT NULL,
+        hash               TEXT    NOT NULL,
+        cree_le            INTEGER NOT NULL,
+        derniere_connexion INTEGER,
+        actif              INTEGER NOT NULL DEFAULT 1
+      );
+
+      -- Les sessions ouvertes. On stocke l'EMPREINTE du jeton, jamais le jeton :
+      -- une copie de ce fichier ne doit donner accès à rien.
+      --
+      -- ON DELETE CASCADE : supprimer un compte ferme ses sessions dans le même
+      -- mouvement. Sans ça, un compte révoqué garderait son accès jusqu'à
+      -- expiration : exactement ce qu'on cherche à empêcher en le supprimant.
+      CREATE TABLE IF NOT EXISTS session (
+        id        TEXT    PRIMARY KEY,
+        compte_id TEXT    NOT NULL REFERENCES compte(id) ON DELETE CASCADE,
+        empreinte TEXT    NOT NULL UNIQUE,
+        appareil  TEXT    NOT NULL,
+        cree_le   INTEGER NOT NULL,
+        vue_le    INTEGER NOT NULL,
+        expire_le INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS session_compte ON session (compte_id);
     `);
+
+    // Les clés étrangères sont désactivées par défaut dans SQLite. Sans cette
+    // ligne, le ON DELETE CASCADE ci-dessus ne serait qu'un commentaire.
+    this.db.pragma('foreign_keys = ON');
+  }
+
+  // ----------------------------------------------------------------- comptes
+
+  /** Zéro signifie « maison neuve » : l'interface proposera de créer le premier compte. */
+  nbComptes(): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM compte').get() as { n: number }).n;
+  }
+
+  comptes(): Compte[] {
+    const rows = this.db.prepare('SELECT * FROM compte ORDER BY cree_le ASC').all() as LigneCompte[];
+    return rows.map(versCompte);
+  }
+
+  compte(id: string): Compte | null {
+    const row = this.db.prepare('SELECT * FROM compte WHERE id = ?').get(id) as
+      | LigneCompte
+      | undefined;
+    return row ? versCompte(row) : null;
+  }
+
+  /** Le compte ET son hachage : réservé à la vérification du mot de passe. */
+  identification(identifiant: string): { compte: Compte; hash: string } | null {
+    const row = this.db
+      .prepare('SELECT * FROM compte WHERE identifiant = ? COLLATE NOCASE')
+      .get(identifiant) as LigneCompte | undefined;
+    return row ? { compte: versCompte(row), hash: row.hash } : null;
+  }
+
+  creerCompte(c: {
+    id: string;
+    identifiant: string;
+    nom: string;
+    role: Role;
+    hash: string;
+  }): Compte {
+    this.db
+      .prepare(
+        `INSERT INTO compte (id, identifiant, nom, role, hash, cree_le, derniere_connexion, actif)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, 1)`,
+      )
+      .run(c.id, c.identifiant, c.nom, c.role, c.hash, Date.now());
+    return this.compte(c.id)!;
+  }
+
+  modifierCompte(id: string, champs: { nom?: string; role?: Role; actif?: boolean }): Compte | null {
+    const actuel = this.compte(id);
+    if (!actuel) return null;
+    this.db
+      .prepare('UPDATE compte SET nom = ?, role = ?, actif = ? WHERE id = ?')
+      .run(
+        champs.nom ?? actuel.nom,
+        champs.role ?? actuel.role,
+        (champs.actif ?? actuel.actif) ? 1 : 0,
+        id,
+      );
+    return this.compte(id);
+  }
+
+  changerMotDePasse(id: string, hash: string): void {
+    this.db.prepare('UPDATE compte SET hash = ? WHERE id = ?').run(hash, id);
+  }
+
+  marquerConnexion(id: string): void {
+    this.db.prepare('UPDATE compte SET derniere_connexion = ? WHERE id = ?').run(Date.now(), id);
+  }
+
+  supprimerCompte(id: string): void {
+    this.db.prepare('DELETE FROM compte WHERE id = ?').run(id);
+  }
+
+  /** Combien d'administrateurs actifs restent. Sert à ne jamais tomber à zéro. */
+  nbAdmins(): number {
+    const r = this.db
+      .prepare("SELECT COUNT(*) AS n FROM compte WHERE role = 'admin' AND actif = 1")
+      .get() as { n: number };
+    return r.n;
+  }
+
+  // ---------------------------------------------------------------- sessions
+
+  ouvrirSession(s: {
+    id: string;
+    compteId: string;
+    empreinte: string;
+    appareil: string;
+    dureeJours: number;
+  }): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO session (id, compte_id, empreinte, appareil, cree_le, vue_le, expire_le)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(s.id, s.compteId, s.empreinte, s.appareil, now, now, now + s.dureeJours * 86_400_000);
+  }
+
+  /**
+   * Le compte derrière un jeton, si la session est encore valable.
+   *
+   * Un compte désactivé est refusé ici, et pas seulement à la connexion :
+   * sinon, désactiver quelqu'un ne ferait effet qu'à sa prochaine ouverture de
+   * session, c'est-à-dire potentiellement jamais.
+   */
+  sessionValide(empreinte: string): { compte: Compte; sessionId: string } | null {
+    const row = this.db
+      .prepare(
+        `SELECT s.id AS sid, c.* FROM session s
+         JOIN compte c ON c.id = s.compte_id
+         WHERE s.empreinte = ? AND s.expire_le > ? AND c.actif = 1`,
+      )
+      .get(empreinte, Date.now()) as (LigneCompte & { sid: string }) | undefined;
+    return row ? { compte: versCompte(row), sessionId: row.sid } : null;
+  }
+
+  /**
+   * Repousse l'expiration à chaque passage.
+   *
+   * Sans ça, la session meurt trente jours après son ouverture même si on s'en
+   * sert tous les jours, et on se retrouve déconnecté sans raison apparente.
+   */
+  toucherSession(id: string, dureeJours: number): void {
+    const now = Date.now();
+    this.db
+      .prepare('UPDATE session SET vue_le = ?, expire_le = ? WHERE id = ?')
+      .run(now, now + dureeJours * 86_400_000, id);
+  }
+
+  sessionsDe(compteId: string): Array<{ id: string; appareil: string; creeLe: string; vueLe: string }> {
+    const rows = this.db
+      .prepare(
+        'SELECT id, appareil, cree_le, vue_le FROM session WHERE compte_id = ? AND expire_le > ? ORDER BY vue_le DESC',
+      )
+      .all(compteId, Date.now()) as Array<{
+      id: string;
+      appareil: string;
+      cree_le: number;
+      vue_le: number;
+    }>;
+    return rows.map((r) => ({
+      id: r.id,
+      appareil: r.appareil,
+      creeLe: new Date(r.cree_le).toISOString(),
+      vueLe: new Date(r.vue_le).toISOString(),
+    }));
+  }
+
+  /**
+   * `compteId` est facultatif mais fourni par les routes : il empêche de
+   * fermer la session de quelqu'un d'autre en devinant un identifiant.
+   */
+  fermerSession(id: string, compteId?: string): void {
+    if (compteId)
+      this.db.prepare('DELETE FROM session WHERE id = ? AND compte_id = ?').run(id, compteId);
+    else this.db.prepare('DELETE FROM session WHERE id = ?').run(id);
+  }
+
+  fermerSessionsDe(compteId: string): void {
+    this.db.prepare('DELETE FROM session WHERE compte_id = ?').run(compteId);
+  }
+
+  /** Les sessions expirées ne servent plus à rien : on les balaie au démarrage. */
+  purgerSessions(): number {
+    return this.db.prepare('DELETE FROM session WHERE expire_le <= ?').run(Date.now()).changes;
   }
 
   // ------------------------------------------------------------ configuration
@@ -130,7 +370,7 @@ export class Db {
    *
    * `history` ne sait rendre que « depuis » avec un plafond de points, ce qui
    * ne convient pas à un calcul d'énergie : il faut la fenêtre exacte, et tous
-   * les points qu'elle contient — un plafond couperait la fin du mois.
+   * les points qu'elle contient : un plafond couperait la fin du mois.
    */
   readings(deviceId: string, de: number, a: number): Array<{ at: number; value: number }> {
     return this.db
@@ -201,7 +441,7 @@ export class Db {
   }
 
   /**
-   * Purge. Mesures brutes conservées 90 jours, journal 2 ans — au-delà on
+   * Purge. Mesures brutes conservées 90 jours, journal 2 ans : au-delà on
    * agrégera, mais pas avant que le volume le justifie.
    */
   prune(): void {

@@ -7,6 +7,10 @@ import { createServer } from 'node:net';
 import mqtt from 'mqtt';
 import { chromium } from 'playwright';
 
+import { connecterNavigateur, ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+const { jeton } = await ouvrirSession();
+
 const PORT = 18831;
 const aedes = new Aedes();
 const srv = createServer(aedes.handle);
@@ -29,6 +33,7 @@ await new Promise((r) => module_.on('connect', r));
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1512, height: 1000 } });
+await connecterNavigateur(p, jeton);
 const err = [];
 p.on('pageerror', (e) => err.push(e.message));
 const ok = (c, m) => { console.log(`${c ? ' PASS ' : ' ECHEC'}  ${m}`); if (!c) process.exitCode = 1; };
@@ -85,7 +90,7 @@ const fiche = fiches.nth(idx);
 await fiche.scrollIntoViewIfNeeded();
 await fiche.locator('button:has-text("Raccorder à un canal")').click();
 await p.waitForTimeout(400);
-await fiche.locator('select').filter({ hasText: 'Câblage manuel' }).selectOption({ label: 'Shelly — relais (Gen 2/3)' });
+await fiche.locator('select').filter({ hasText: 'Câblage manuel' }).selectOption({ label: 'Shelly : relais (Gen 2/3)' });
 await p.waitForTimeout(400);
 await fiche.locator('input[placeholder="identifiant du module"]').fill('lampe-salon');
 await fiche.locator('button:has-text("Appliquer")').click();

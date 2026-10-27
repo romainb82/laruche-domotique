@@ -8,7 +8,7 @@
  * que personne ne lit. À 88 px, l'icône et son libellé tiennent, et la place
  * rendue va au plan de la maison et au panneau de pièce.
  *
- * Ce qui disparaissait avec elle — le nom de la maison, l'état des canaux — ne
+ * Ce qui disparaissait avec elle, le nom de la maison et l'état des canaux, ne
  * disparaît pas : le nom est sur l'accueil, et l'état du lien devient une
  * pastille sur le logo, plus visible qu'une ligne de texte gris.
  *
@@ -16,15 +16,19 @@
  * qu'on cherche toujours au même endroit ; la mêler aux pièces et aux
  * scénarios revenait à la noyer.
  */
-import { computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useHouse } from '@/stores/house';
+import { ROLE_LABELS } from '@domo/shared';
+import { useAuth } from '@/stores/auth';
 import { useAnnonce } from '@/composables/useAnnonce';
 import Icon from '@/components/Icon.vue';
 
 const house = useHouse();
+const auth = useAuth();
 const { message: annonce } = useAnnonce();
 const route = useRoute();
+const router = useRouter();
 
 /**
  * Le menu.
@@ -59,14 +63,68 @@ const resume = computed(() => {
 const actif = (to: string) =>
   to === '/' ? route.path === '/' || route.path.startsWith('/zone') : route.path === to;
 
-onMounted(async () => {
-  await house.load();
-  house.connect();
+/**
+ * La maison ne se charge QU'UNE FOIS CONNECTÉ.
+ *
+ * Avant, le chargement partait au montage : il reviendrait maintenant en 401,
+ * et le bandeau « serveur injoignable » s'afficherait derrière la page de
+ * connexion alors que le serveur va très bien.
+ *
+ * `immediate` couvre le cas le plus fréquent : une session encore valable, où
+ * `connecte` est déjà vrai quand le composant se monte.
+ */
+watch(
+  () => auth.connecte,
+  async (ouvert) => {
+    if (!ouvert) return;
+    await house.load();
+    house.connect();
+  },
+  { immediate: true },
+);
+
+const menuOuvert = ref(false);
+
+const roleLisible = computed(() => (auth.compte ? ROLE_LABELS[auth.compte.role] : ''));
+
+/**
+ * Un menu ouvert doit se refermer tout seul.
+ *
+ * Deux sorties : la touche Echap, et un clic ailleurs. Sans elles, le menu
+ * reste accroche a l'ecran pendant qu'on navigue, ce qui donne l'impression
+ * que l'interface a decroche.
+ */
+function fermerMenu(e: Event) {
+  if (!menuOuvert.value) return;
+  if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+  menuOuvert.value = false;
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', fermerMenu);
+  document.addEventListener('pointerdown', fermerMenu);
 });
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', fermerMenu);
+  document.removeEventListener('pointerdown', fermerMenu);
+});
+
+async function sortir() {
+  menuOuvert.value = false;
+  await auth.deconnexion();
+  await router.replace('/connexion');
+}
 </script>
 
 <template>
-  <div class="min-h-dvh lg:flex">
+  <!--
+    La page de connexion s'affiche SEULE : ni rail, ni barre du bas, ni bandeau
+    de lien. Montrer la navigation de la maison à quelqu'un qui n'y est pas
+    encore entré, ce serait lui décrire les pièces depuis le paillasson.
+  -->
+  <RouterView v-if="!auth.connecte" />
+
+  <div v-else class="min-h-dvh lg:flex">
     <!-- Le rail. Bureau uniquement : sur un téléphone, la barre du bas fait le
          même travail sans manger de largeur. -->
     <aside
@@ -75,7 +133,7 @@ onMounted(async () => {
       <RouterLink
         to="/"
         class="relative grid h-11 w-11 place-items-center rounded-[14px] bg-glow-deep text-surface transition-transform active:scale-95"
-        :aria-label="`${house.config?.house.name ?? 'Maison'} — ${resume}`"
+        :aria-label="`${house.config?.house.name ?? 'Maison'} : ${resume}`"
       >
         <Icon name="ruche" :size="21" />
         <!-- L'état du lien, là où l'œil revient toujours. -->
@@ -106,18 +164,79 @@ onMounted(async () => {
         <Icon :name="REGLAGES.icone" :size="20" />
         {{ REGLAGES.libelle }}
       </RouterLink>
+
+      <!--
+        Qui est connecté, et par où sortir.
+
+        Un MENU, pas un bouton de déconnexion. Cliquer sur son propre nom pour
+        se retrouver dehors est exactement ce qu'on ne veut pas : c'est le
+        geste qu'on fait pour vérifier avec quel compte on est, pas pour
+        partir.
+      -->
+      <div class="relative mt-1">
+        <button
+          type="button"
+          class="press grid h-10 w-10 place-items-center rounded-full text-[13px] font-semibold transition-colors"
+          :class="menuOuvert ? 'bg-ink text-surface' : 'bg-ink/[0.06] text-soft hover:bg-ink/10 hover:text-ink'"
+          :aria-label="`Compte de ${auth.compte?.nom}`"
+          :aria-expanded="menuOuvert"
+          aria-haspopup="menu"
+          @click.stop="menuOuvert = !menuOuvert"
+        >
+          {{ (auth.compte?.nom ?? '?').slice(0, 1).toUpperCase() }}
+        </button>
+
+        <div
+          v-if="menuOuvert"
+          role="menu"
+          class="absolute bottom-0 left-[52px] z-30 w-60 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg"
+          @click.stop
+        >
+          <div class="border-b border-line px-4 py-3">
+            <p class="truncate text-sm font-semibold">{{ auth.compte?.nom }}</p>
+            <p class="truncate font-mono text-xs text-soft">
+              {{ auth.compte?.identifiant }} · {{ roleLisible }}
+            </p>
+          </div>
+
+          <RouterLink
+            to="/parametrage"
+            role="menuitem"
+            class="flex min-h-[44px] items-center gap-2.5 px-4 text-sm hover:bg-ink/[0.04]"
+            @click="menuOuvert = false"
+          >
+            <Icon name="reglages" :size="17" />
+            Réglages
+          </RouterLink>
+
+          <button
+            type="button"
+            role="menuitem"
+            class="flex min-h-[44px] w-full items-center gap-2.5 border-t border-line px-4 text-left text-sm text-crit hover:bg-crit/[0.06]"
+            @click="sortir"
+          >
+            <Icon name="retour" :size="17" />
+            Se déconnecter
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Contenu : pleine largeur, avec une borne haute pour que les lignes de
          texte restent lisibles sur un 27 pouces. -->
     <div class="min-w-0 flex-1">
-      <div class="mx-auto w-full max-w-[1500px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+      <!--
+        Pleine largeur, sans plafond : la maison s'étale sur tout l'écran.
+        Un `max-width` centré laissait deux bandes vides sur un grand moniteur,
+        alors que le plan et le panneau latéral ont justement besoin de place.
+      -->
+      <div class="w-full px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
         <p
           v-if="!house.connected"
           class="mb-5 flex items-center gap-2 rounded-xl border border-crit/40 bg-crit/[0.08] px-3.5 py-2.5 text-sm text-crit"
         >
           <Icon name="alerte" :size="17" />
-          Serveur injoignable — les états affichés ne sont plus à jour.
+          Serveur injoignable : les états affichés ne sont plus à jour.
         </p>
 
         <main>

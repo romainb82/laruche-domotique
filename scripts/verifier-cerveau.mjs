@@ -1,14 +1,18 @@
 /**
  * Le cerveau, mis a l'epreuve contre un VRAI broker MQTT.
  *
- * On simule trois materiels aux formats volontairement differents — Shelly
+ * On simule trois materiels aux formats volontairement differents : Shelly
  * (JSON imbrique, cle 'switch:0'), Zigbee2MQTT (texte 'ON'/'OFF', volet inverse)
- * et un capteur brut (texte nu) — et on verifie que le meme moteur les comprend
+ * et un capteur brut (texte nu), et on verifie que le meme moteur les comprend
  * tous les trois sans une ligne de code specifique.
  */
 import Aedes from 'aedes';
 import { createServer } from 'node:net';
 import mqtt from 'mqtt';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const PORT = 18830;
 const B = 'http://localhost:3001';
@@ -36,10 +40,27 @@ materiel.on('message', (t, p) => recus.push({ topic: t, payload: p.toString() })
 const [, cfg0] = await j('/api/config');
 const base = cfg0.devices.filter((d) => !d.id.startsWith('test.'));
 
+/**
+ * Les connexions de la maison sont CONSERVEES, et les deux canaux de test
+ * s'y ajoutent.
+ *
+ * Deux raisons, decouvertes en branchant un vrai Home Assistant :
+ *
+ *   . les equipements de `base` gardent leurs raccordements, et un equipement
+ *     qui pointe vers une connexion absente de la liste fait refuser toute la
+ *     configuration, a juste titre ;
+ *   . le menage de fin ne restaurait qu'une seule connexion, donc lancer la
+ *     verification SUPPRIMAIT les canaux reels de la maison.
+ */
+const connexionsMaison = (cfg0.connections ?? []).filter(
+  (c) => c.id !== 'sim' && c.id !== 'brk',
+);
+
 const connexions = [
   { id: 'sim', kind: 'sim', label: 'Simulateur', enabled: true, settings: {} },
   { id: 'brk', kind: 'mqtt', label: 'Broker de test', enabled: true,
     settings: { url: `mqtt://localhost:${PORT}`, username: '', password: '', baseTopic: 'maison' } },
+  ...connexionsMaison,
 ];
 
 const equipements = [
@@ -71,8 +92,13 @@ const [, st0] = await j('/api/connections');
 const brk = st0.connections.find((c) => c.id === 'brk');
 const sim = st0.connections.find((c) => c.id === 'sim');
 ok(brk?.state === 'connected', `Canal MQTT connecte (${brk?.devices} equipements)`);
-ok(sim?.state === 'connected' && sim.devices === base.length,
-   `Simulateur sert les ${sim?.devices} equipements non raccordes, en parallele`);
+// Le compte attendu se CALCULE : les equipements deja raccordes a un vrai
+// canal (Home Assistant, par exemple) ne tombent pas au simulateur. L'ecrire
+// en dur faisait echouer le test des qu'on branchait un equipement reel.
+const canaux = new Set(connexions.filter((c) => c.enabled && c.id !== 'sim').map((c) => c.id));
+const attendus = base.filter((d) => !d.binding || !canaux.has(d.binding.connectionId)).length;
+ok(sim?.state === 'connected' && sim.devices === attendus,
+   `Simulateur sert les ${sim?.devices} equipements non raccordes (${attendus} attendus), en parallele`);
 
 // --- 3. LECTURE : trois formats, un seul moteur ---
 await materiel.publishAsync('maison/shelly1/status/switch:0', JSON.stringify({ output: true, apower: 12.4 }));
@@ -136,6 +162,8 @@ const [codeCmd] = await post('/api/devices/z01.light.plafond/command', { kind: '
 ok(codeCmd === 200, 'Broker tombe : les pieces simulees repondent toujours');
 
 // --- menage ---
-await put('/api/config', { ...cfg0, connections: [connexions[0]], devices: base });
+// On remet EXACTEMENT ce qu'on a trouve en arrivant : les canaux de la maison
+// n'ont pas a disparaitre parce qu'on a lance une verification.
+await put('/api/config', { ...cfg0, connections: cfg0.connections, devices: base });
 await pause(500);
 process.exit(process.exitCode ?? 0);

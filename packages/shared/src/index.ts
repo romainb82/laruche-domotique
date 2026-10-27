@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './auth.js';
 export * from './config.js';
 export * from './wiring.js';
 export * from './transform.js';

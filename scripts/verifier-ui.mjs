@@ -1,9 +1,14 @@
 import { chromium } from 'playwright';
+
+import { connecterNavigateur, ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+const { jeton } = await ouvrirSession();
 const b = await chromium.launch();
 const err = [];
 
 // --- bureau ---
 const p = await b.newPage({ viewport: { width: 1512, height: 950 } });
+await connecterNavigateur(p, jeton);
 p.on('pageerror', e => err.push('bureau: ' + e.message));
 await p.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
 await p.waitForTimeout(1500);
@@ -14,6 +19,7 @@ await p.screenshot({ path: '/tmp/shots/1-accueil.png', fullPage: true });
 
 // --- telephone ---
 const m = await b.newPage({ viewport: { width: 390, height: 844 } });
+await connecterNavigateur(m, jeton);
 m.on('pageerror', e => err.push('mobile: ' + e.message));
 await m.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
 await m.waitForTimeout(1500);

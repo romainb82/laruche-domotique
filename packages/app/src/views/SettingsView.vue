@@ -13,12 +13,23 @@ import {
   type DeviceType, type HouseConfig, type Metric, type Preset,
   type ZoneConfig, type ZoneKind,
 } from '@domo/shared';
+import { useRouter } from 'vue-router';
 import { useHouse } from '@/stores/house';
+import { ROLE_LABELS } from '@domo/shared';
+import { useAuth } from '@/stores/auth';
+import GestionComptes from '@/components/GestionComptes.vue';
 import { useAnnonce } from '@/composables/useAnnonce';
 import ConnectionCard from '@/components/ConnectionCard.vue';
 import WiringEditor from '@/components/WiringEditor.vue';
 
 const house = useHouse();
+const router = useRouter();
+const auth = useAuth();
+
+async function seDeconnecter() {
+  await auth.deconnexion();
+  await router.replace('/connexion');
+}
 // Le résultat d'un essai doit être DIT, pas seulement affiché.
 const { annoncer } = useAnnonce();
 
@@ -27,21 +38,28 @@ const { annoncer } = useAnnonce();
  *
  * L'API native de clonage ne sait pas dupliquer un proxy réactif Vue : elle
  * lève « could not be cloned » et l'écran reste blanc. La configuration est du
- * JSON pur (ni Date, ni Map), donc l'aller-retour JSON est exact — et, ici, le
+ * JSON pur (ni Date, ni Map), donc l'aller-retour JSON est exact, et, ici, le
  * seul qui fonctionne.
  */
 function copie<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-type Tab = 'maison' | 'zones' | 'equipements' | 'materiel' | 'cameras';
-const ONGLETS: { id: Tab; libelle: string }[] = [
+type Tab = 'maison' | 'zones' | 'equipements' | 'materiel' | 'cameras' | 'comptes';
+
+/**
+ * Les onglets. « Comptes » n'apparait que pour un administrateur : les routes
+ * sont de toute facon refusees aux autres en 403, et proposer une destination
+ * qui repond « acces refuse » use la confiance plus qu'elle ne rend service.
+ */
+const ONGLETS = computed<{ id: Tab; libelle: string }[]>(() => [
   { id: 'maison', libelle: 'Maison' },
   { id: 'zones', libelle: 'Zones' },
   { id: 'equipements', libelle: 'Équipements' },
   { id: 'materiel', libelle: 'Matériel' },
   { id: 'cameras', libelle: 'Caméras' },
-];
+  ...(auth.peut('admin') ? [{ id: 'comptes' as Tab, libelle: 'Comptes' }] : []),
+]);
 const tab = ref<Tab>('maison');
 
 /**
@@ -49,7 +67,7 @@ const tab = ref<Tab>('maison');
  *
  * Il ne se déduit pas du brouillon : cocher « ouvrir » n'ouvre rien tant qu'on
  * n'a pas enregistré, et un pont peut refuser de s'ouvrir. On demande donc au
- * serveur ce qu'il en est vraiment — c'est la même règle que partout ailleurs.
+ * serveur ce qu'il en est vraiment : c'est la même règle que partout ailleurs.
  */
 // ---------------------------------------------------------------- caméras
 
@@ -57,7 +75,7 @@ const tab = ref<Tab>('maison');
  * Une caméra neuve naît AU REPOS, sans adresse.
  *
  * Elle ne filmera donc rien tant qu'on ne l'a pas remplie puis allumée
- * sciemment. Le contraire — une caméra active dès sa création — serait la
+ * sciemment. Le contraire : une caméra active dès sa création : serait la
  * pire valeur par défaut de toute l'application.
  */
 function ajouterCamera() {
@@ -99,7 +117,7 @@ async function testerCamera(id: string) {
     });
     const corps = await res.json();
     essais.value[id] = corps.ok
-      ? { etat: 'ok', texte: `Image reçue en ${corps.ms} ms — ${Math.round(corps.octets / 1024)} ko, ${corps.type}.` }
+      ? { etat: 'ok', texte: `Image reçue en ${corps.ms} ms : ${Math.round(corps.octets / 1024)} ko, ${corps.type}.` }
       : { etat: 'ko', texte: corps.error ?? 'Échec.' };
   } catch (e) {
     essais.value[id] = { etat: 'ko', texte: (e as Error).message };
@@ -354,6 +372,33 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
       </p>
     </header>
 
+    <!--
+      Le compte, sur telephone uniquement.
+
+      Sur grand ecran, le rail porte deja l'avatar et son menu. Sur telephone
+      la barre du bas est pleine, et sans ce bloc il n'existait AUCUN moyen de
+      se deconnecter : un trou qu'on ne voit qu'en essayant depuis un
+      telephone.
+    -->
+    <section v-if="auth.compte" class="card flex flex-wrap items-center gap-3 lg:hidden">
+      <span
+        class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-glow/15 text-sm font-semibold text-glow-deep"
+      >{{ [...auth.compte.nom][0]?.toUpperCase() }}</span>
+      <span class="flex min-w-0 flex-1 flex-col">
+        <span class="truncate text-sm font-semibold">{{ auth.compte.nom }}</span>
+        <span class="truncate font-mono text-xs text-soft">
+          {{ auth.compte.identifiant }} · {{ ROLE_LABELS[auth.compte.role] }}
+        </span>
+      </span>
+      <button
+        type="button"
+        class="press shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-medium text-crit hover:bg-crit/[0.08]"
+        @click="seDeconnecter"
+      >
+        Se déconnecter
+      </button>
+    </section>
+
     <nav class="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-raised p-1">
       <button
         v-for="o in ONGLETS"
@@ -382,23 +427,23 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <h2 class="card-title">Chauffage</h2>
         <p class="hint">
           Régulation unique aujourd'hui : la maison n'a pas d'émetteur pilotable par pièce.
-          Basculer sur « zoné » le jour où elle en aura — le modèle est déjà prêt, il n'y aura
+          Basculer sur « zoné » le jour où elle en aura : le modèle est déjà prêt, il n'y aura
           rien à réécrire.
         </p>
         <label class="field">
           <span>Mode</span>
           <select v-model="draft.heating.mode" class="input">
-            <option value="single">Unique — toute la maison</option>
-            <option value="zoned">Zoné — un émetteur par pièce</option>
+            <option value="single">Unique : toute la maison</option>
+            <option value="zoned">Zoné : un émetteur par pièce</option>
           </select>
         </label>
         <label class="field">
           <span>Type d'émetteur</span>
           <select v-model="draft.heating.emitter" class="input">
             <option value="unknown">À déterminer</option>
-            <option value="air">Air soufflé — inertie faible</option>
-            <option value="water">Radiateurs à eau — inertie moyenne</option>
-            <option value="floor">Plancher chauffant — forte inertie</option>
+            <option value="air">Air soufflé : inertie faible</option>
+            <option value="water">Radiateurs à eau : inertie moyenne</option>
+            <option value="floor">Plancher chauffant : forte inertie</option>
           </select>
         </label>
         <p class="hint">
@@ -427,8 +472,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
       <div class="card">
         <h2 class="card-title">Piscine</h2>
         <p class="hint">
-          L'application lit, historise et alerte. Elle ne commande jamais l'injection de produit —
-          cette boucle reste sur un régulateur autonome, avec ses sécurités câblées.
+          L'application lit, historise et alerte. Elle ne commande jamais l'injection de produit : cette boucle reste sur un régulateur autonome, avec ses sécurités câblées.
         </p>
         <label class="flex items-center gap-2 py-1">
           <input v-model="draft.pool.enabled" type="checkbox" class="h-6 w-6 accent-[rgb(var(--c-glow))]" />
@@ -459,7 +503,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <h2 class="card-title">Énergie</h2>
         <p class="hint">
           Un seul compteur mesure la maison entière. La part du chauffage ou de
-          la cuisine ne s'en déduit pas — il faudrait une mesure par circuit.
+          la cuisine ne s'en déduit pas : il faudrait une mesure par circuit.
         </p>
 
         <label class="flex items-center gap-2 text-sm">
@@ -475,7 +519,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <label class="field">
           <span>Compteur général</span>
           <select v-model="draft.energy.meterDeviceId" class="input">
-            <option value="">Aucun — pas de suivi</option>
+            <option value="">Aucun : pas de suivi</option>
             <option v-for="d in compteurs" :key="d.id" :value="d.id">{{ d.label }}</option>
           </select>
         </label>
@@ -541,7 +585,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
             </summary>
             <ul class="mt-1.5 space-y-1 pl-4">
               <li v-for="e in pont.skipped" :key="e.label">
-                <strong>{{ e.label }}</strong> — {{ e.raison }}
+                <strong>{{ e.label }}</strong> : {{ e.raison }}
               </li>
             </ul>
             <p class="mt-1.5">
@@ -591,7 +635,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
           <span>Pièce chauffée</span>
         </label>
         <p class="hint">
-          {{ z.plan?.length ? `${z.plan.length} emprise(s) sur le plan` : 'Pas d’emprise — n’apparaît pas sur le plan' }}
+          {{ z.plan?.length ? `${z.plan.length} emprise(s) sur le plan` : 'Pas d’emprise : n’apparaît pas sur le plan' }}
           · {{ draft.devices.filter(d => d.zoneId === z.id).length }} équipements
         </p>
       </div>
@@ -611,7 +655,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
       </div>
 
       <p v-if="unbound" class="rounded-xl border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-xs text-warn-deep">
-        {{ unbound }} équipement(s) non raccordés au matériel — ils restent simulés.
+        {{ unbound }} équipement(s) non raccordés au matériel : ils restent simulés.
       </p>
 
       <div class="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
@@ -841,6 +885,9 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         </button>
       </div>
     </div>
+
+    <!-- ===================================================== COMPTES -->
+    <GestionComptes v-if="tab === 'comptes'" />
   </div>
 </template>
 

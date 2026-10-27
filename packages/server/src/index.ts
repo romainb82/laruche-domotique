@@ -1,5 +1,9 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
+import fastifyStatic from '@fastify/static';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   buildSeedConfig,
   isBlocking,
@@ -28,6 +32,31 @@ import type { Adapter } from './adapters/adapter.js';
 import { PontHomeKit } from './homekit.js';
 import { Planificateur } from './planificateur.js';
 import { instantane, publique } from './cameras.js';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import {
+  auMoins,
+  normaliserIdentifiant,
+  REFUS_CONNEXION,
+  ROLES,
+  validerIdentifiant,
+  validerMotDePasse,
+  validerNom,
+  type Compte,
+  type Role,
+} from '@domo/shared';
+import {
+  empreinteJeton,
+  Guichet,
+  hacher,
+  jetonDeLaRequete,
+  nommerAppareil,
+  nouveauJeton,
+  nouvelId,
+  poserCookie,
+  retirerCookie,
+  SESSION_JOURS,
+  verifier,
+} from './auth.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -41,7 +70,7 @@ let config = db.loadConfig();
 if (!config) {
   config = buildSeedConfig();
   db.saveConfig(config);
-  console.log('[config] première initialisation — maison de référence chargée');
+  console.log('[config] première initialisation : maison de référence chargée');
 } else {
   // Les bases écrites avant le bus d'adaptateurs sont converties au vol.
   const migre = migrateConfig(config);
@@ -58,13 +87,13 @@ hub.on('warn', (m: string) => console.warn(`[canal] ${m}`));
 await hub.start();
 for (const c of hub.connections()) {
   const marque = c.state === 'connected' ? '✓' : c.state === 'disabled' ? '·' : '✗';
-  console.log(`[canal] ${marque} ${c.label} — ${c.devices} équipements${c.detail ? ` (${c.detail})` : ''}`);
+  console.log(`[canal] ${marque} ${c.label} : ${c.devices} équipements${c.detail ? ` (${c.detail})` : ''}`);
 }
 
 /**
  * Le planificateur : ce qui fait partir une scène toute seule.
  *
- * Il démarre avec le serveur et ne rattrape jamais un départ manqué — un
+ * Il démarre avec le serveur et ne rattrape jamais un départ manqué : un
  * réveil qui s'exécute à 9 h parce que la machine a redémarré agirait sur une
  * situation qui n'existe plus.
  */
@@ -78,21 +107,25 @@ planificateur.start(config);
   console.log(
     `[scènes] ${programmees} programmée(s)` +
       (suivante
-        ? ` — prochaine : ${suivante.label} à ${new Date(suivante.at).toLocaleString('fr-FR', { timeZone: config.house.timezone })}`
+        ? ` : prochaine : ${suivante.label} à ${new Date(suivante.at).toLocaleString('fr-FR', { timeZone: config.house.timezone })}`
         : ''),
   );
 }
 
 /**
- * Le pont HomeKit. Éteint tant que la configuration ne l'allume pas — publier
+ * Le pont HomeKit. Éteint tant que la configuration ne l'allume pas : publier
  * la maison sur le réseau n'est pas une décision à prendre pour quelqu'un.
  */
-const pont = new PontHomeKit(hub, new URL('../../../data/homekit', import.meta.url).pathname);
+// Le dossier d'appairage HomeKit est déplaçable, comme la base : installé en
+// service, le code vit dans /opt en lecture seule et l'état dans /var/lib.
+const HOMEKIT_DIR =
+  process.env.HOMEKIT_DIR ?? new URL('../../../data/homekit', import.meta.url).pathname;
+const pont = new PontHomeKit(hub, HOMEKIT_DIR);
 try {
   await pont.start(config);
   if (config.homekit?.enabled) {
     const e = pont.etat(config);
-    console.log(`[homekit] ✓ pont ouvert — ${e.exposes} accessoires` +
+    console.log(`[homekit] ✓ pont ouvert : ${e.exposes} accessoires` +
       (e.skipped.length ? `, ${e.skipped.length} écarté(s)` : ''));
   }
 } catch (e) {
@@ -104,12 +137,423 @@ const app = Fastify({ logger: false });
 await app.register(websocket);
 
 // L'interface tourne sur un autre port en développement.
+//
+// `*` et PAS d'en-tête `Allow-Credentials` : un navigateur refuse de toute
+// façon d'envoyer un cookie vers une origine autorisée par `*`. Ce n'est pas
+// une limite en pratique : l'interface web est servie par ce serveur ou par le
+// mandataire de Vite, donc même origine, et l'application iOS porte son jeton
+// dans l'en-tête `Authorization`, auquel le CORS ne s'applique pas.
 app.addHook('onSend', async (_req, reply) => {
   reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Headers', 'content-type');
+  reply.header('Access-Control-Allow-Headers', 'content-type, authorization');
   reply.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
 });
 app.options('/*', async (_req, reply) => reply.status(204).send());
+
+// ============================================================= les comptes
+//
+// Avant ce chantier, toute machine du réseau local pouvait piloter la maison
+// et demander les images des caméras. Deux pièces le corrigent : la garde
+// ci-dessous, qui ferme les 35 routes existantes, et les routes `/api/auth`,
+// seules à rester ouvertes.
+
+const guichet = new Guichet();
+
+/**
+ * Un hachage qui ne correspond à personne.
+ *
+ * Il sert à faire travailler scrypt exactement aussi longtemps quand
+ * l'identifiant est inconnu que lorsqu'il existe. Sans ce leurre, la durée de
+ * la réponse trahirait quels comptes existent dans la maison : une attaque
+ * classique, et facile à mener depuis le réseau local.
+ *
+ * Calculé une fois au démarrage, sur une valeur aléatoire que personne ne
+ * connaît : il n'y a aucun mot de passe capable de le satisfaire.
+ */
+const HACHAGE_LEURRE = await hacher(nouveauJeton());
+
+{
+  const balayees = db.purgerSessions();
+  if (balayees) console.log(`[comptes] ${balayees} session(s) expirée(s) effacée(s)`);
+}
+
+/** Le compte derrière la requête courante, posé par la garde. */
+declare module 'fastify' {
+  interface FastifyRequest {
+    compte?: Compte;
+    sessionId?: string;
+  }
+}
+
+/**
+ * Ce qui reste accessible sans compte.
+ *
+ * Volontairement court, et volontairement explicite : une liste d'exceptions
+ * qu'on allonge « juste pour essayer » est la façon habituelle dont une
+ * authentification finit par ne plus rien protéger.
+ *
+ * Les fichiers de l'interface n'y figurent pas et n'en ont pas besoin : la
+ * garde ne s'applique qu'aux chemins `/api` et `/ws`. Il FAUT que la page de
+ * connexion puisse se charger sans être connecté.
+ */
+const OUVERT = new Set([
+  '/api/auth/etat',
+  '/api/auth/login',
+  '/api/auth/premier-compte',
+  '/api/auth/habitants',
+]);
+
+/**
+ * La liste des habitants s'affiche-t-elle AVANT la connexion ?
+ *
+ * Oui par défaut : c'est une maison, pas un extranet. Choisir son visage
+ * plutôt que taper son identifiant est ce que font macOS, Windows et les
+ * consoles de jeu, et c'est le geste naturel sur une tablette fixée au mur.
+ *
+ * Le prix est réel et doit être dit : qui est sur le réseau local apprend
+ * combien de personnes vivent ici et leurs prénoms. Tant qu'on reste sur le
+ * Wi-Fi de la maison c'est sans conséquence : ces gens sont déjà chez vous.
+ * Le jour où le serveur sortira derrière un tunnel : `HABITANTS=off`.
+ *
+ * Ce qui n'est JAMAIS rendu, même liste affichée : l'identifiant de connexion.
+ * On montre un prénom et un visage, pas de quoi commencer à deviner.
+ */
+const LISTER_HABITANTS = process.env.HABITANTS !== 'off';
+
+/**
+ * La garde. Elle s'exécute avant chaque route.
+ *
+ * `onRequest` et pas `preHandler` : on refuse avant même que Fastify n'ait lu
+ * le corps de la requête, donc sans jamais désérialiser ce qu'envoie un
+ * inconnu.
+ */
+app.addHook('onRequest', async (req, reply) => {
+  const chemin = req.url.split('?')[0] ?? '/';
+  if (req.method === 'OPTIONS') return;
+  if (!chemin.startsWith('/api') && chemin !== '/ws') return;
+  if (OUVERT.has(chemin)) return;
+
+  const jeton = jetonDeLaRequete(req.headers.cookie, req.headers.authorization);
+  const trouve = jeton ? db.sessionValide(empreinteJeton(jeton)) : null;
+
+  if (!trouve) {
+    // 401 et pas 403 : l'interface sait alors qu'il faut rouvrir la page de
+    // connexion, au lieu d'afficher « accès refusé » à quelqu'un dont la
+    // session a simplement expiré pendant la nuit.
+    return reply.status(401).send({ error: 'Connexion requise.' });
+  }
+
+  req.compte = trouve.compte;
+  req.sessionId = trouve.sessionId;
+  db.toucherSession(trouve.sessionId, SESSION_JOURS);
+});
+
+/** Refuse la requête si le compte n'a pas le rang demandé. */
+function exige(req: FastifyRequest, reply: FastifyReply, minimum: Role): boolean {
+  if (req.compte && auMoins(req.compte.role, minimum)) return true;
+  reply.status(403).send({ error: "Votre compte n'a pas les droits pour cette action." });
+  return false;
+}
+
+/**
+ * L'état d'ouverture, avant toute connexion.
+ *
+ * Ne dit RIEN de la maison : ni son nom, ni ses pièces, ni combien de comptes
+ * existent. Seulement s'il faut créer le premier compte ou se connecter : le
+ * strict nécessaire pour que la page sache quoi afficher.
+ */
+app.get('/api/auth/etat', async (req) => {
+  const jeton = jetonDeLaRequete(req.headers.cookie, req.headers.authorization);
+  const trouve = jeton ? db.sessionValide(empreinteJeton(jeton)) : null;
+  return { installe: db.nbComptes() > 0, compte: trouve?.compte ?? null };
+});
+
+/**
+ * Qui habite ici : prénom et rôle, rien d'autre.
+ *
+ * Ce qui permet de choisir son visage au lieu de taper un identifiant. Les
+ * comptes désactivés n'y figurent pas : proposer quelqu'un dont le compte est
+ * fermé, c'est promettre une porte qui ne s'ouvrira pas.
+ */
+app.get('/api/auth/habitants', async () => {
+  if (!LISTER_HABITANTS) return { habitants: [] };
+  return {
+    habitants: db
+      .comptes()
+      .filter((c) => c.actif)
+      .map((c) => ({
+        // L'`id` et pas l'`identifiant` : on ne livre pas la chaîne qu'on
+        // tape pour se connecter. Le choix se fait sur un visage.
+        id: c.id,
+        nom: c.nom,
+        initiale: [...c.nom.trim()][0]?.toUpperCase() ?? '?',
+        role: c.role,
+      })),
+  };
+});
+
+/** Ouvre une session, pose le cookie, et rend le compte. Partagé par les deux entrées. */
+async function ouvrirLaSession(
+  compte: Compte,
+  req: FastifyRequest,
+  reply: FastifyReply,
+  rester = true,
+) {
+  const jeton = nouveauJeton();
+  db.ouvrirSession({
+    id: nouvelId('s'),
+    compteId: compte.id,
+    empreinte: empreinteJeton(jeton),
+    appareil: nommerAppareil(req.headers['user-agent']),
+    dureeJours: SESSION_JOURS,
+  });
+  db.marquerConnexion(compte.id);
+
+  // `x-forwarded-proto` : derrière un tunnel qui termine le HTTPS, la requête
+  // arrive en clair sur le serveur alors que le navigateur, lui, est bien en
+  // HTTPS. Sans cette lecture, le cookie manquerait son attribut `Secure`.
+  const securise = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+
+  // « Rester connecte » decoche : cookie de SESSION, qui meurt a la fermeture
+  // du navigateur. C'est ce qu'on veut sur la tablette d'une chambre d'amis
+  // ou sur un ordinateur emprunte. La session reste valable cote serveur, mais
+  // le navigateur ne la rapporte plus.
+  reply.header('Set-Cookie', poserCookie(jeton, securise, rester));
+  // Le jeton est rendu AUSSI dans le corps, pour l'application iOS, qui n'a pas
+  // de magasin à cookies aussi commode qu'un navigateur.
+  return { compte: db.compte(compte.id), jeton };
+}
+
+/**
+ * Le tout premier compte.
+ *
+ * Ouvert uniquement tant qu'aucun compte n'existe : ensuite la route refuse,
+ * sinon n'importe qui se fabriquerait un administrateur. C'est le seul moment
+ * où un compte se crée sans être déjà connecté.
+ */
+app.post<{ Body: { identifiant?: string; nom?: string; motDePasse?: string } }>(
+  '/api/auth/premier-compte',
+  async (req, reply) => {
+    if (db.nbComptes() > 0)
+      return reply.status(409).send({ error: 'La maison a déjà un administrateur.' });
+
+    const identifiant = normaliserIdentifiant(req.body?.identifiant ?? '');
+    const nom = (req.body?.nom ?? '').trim();
+    const motDePasse = req.body?.motDePasse ?? '';
+
+    const refus =
+      validerIdentifiant(identifiant) ?? validerNom(nom) ?? validerMotDePasse(motDePasse, identifiant);
+    if (refus) return reply.status(400).send({ error: refus });
+
+    const compte = db.creerCompte({
+      id: nouvelId('u'),
+      identifiant,
+      nom,
+      role: 'admin',
+      hash: await hacher(motDePasse),
+    });
+
+    console.log(`[comptes] premier compte créé : ${compte.identifiant} (administrateur)`);
+    return ouvrirLaSession(compte, req, reply);
+  },
+);
+
+app.post<{
+  Body: { identifiant?: string; compteId?: string; motDePasse?: string; rester?: boolean };
+}>('/api/auth/login', async (req, reply) => {
+  // Deux entrees : on tape son identifiant, ou on choisit son visage dans la
+  // liste des habitants. La seconde renvoie un `compteId`, jamais
+  // l'identifiant de connexion.
+  const choisi = req.body?.compteId ? db.compte(req.body.compteId) : null;
+  const identifiant = choisi
+    ? choisi.identifiant
+    : normaliserIdentifiant(req.body?.identifiant ?? '');
+  const motDePasse = req.body?.motDePasse ?? '';
+  const rester = req.body?.rester !== false;
+  const cles = [`id:${identifiant}`, `ip:${req.ip}`];
+
+    const attente = guichet.attente(cles);
+    if (attente)
+      return reply
+        .status(429)
+        .send({ error: `Trop d'essais. Réessayez dans ${attente} minute${attente > 1 ? 's' : ''}.` });
+
+    const trouve = identifiant ? db.identification(identifiant) : null;
+
+    // On vérifie le mot de passe MÊME si le compte n'existe pas, contre un
+    // hachage jetable : sans ça, un identifiant inconnu répondrait en une
+    // milliseconde et un identifiant connu en plusieurs dizaines, ce qui
+    // révélerait quels comptes existent dans la maison.
+    const ok = trouve
+      ? await verifier(motDePasse, trouve.hash)
+      : (await verifier(motDePasse, HACHAGE_LEURRE), false);
+
+    if (!ok || !trouve?.compte.actif) {
+      guichet.echec(cles);
+      return reply.status(401).send({ error: REFUS_CONNEXION });
+    }
+
+    guichet.succes(cles);
+    return ouvrirLaSession(trouve.compte, req, reply, rester);
+  },
+);
+
+app.post('/api/auth/logout', async (req, reply) => {
+  if (req.sessionId) db.fermerSession(req.sessionId, req.compte?.id);
+  reply.header('Set-Cookie', retirerCookie());
+  return { ok: true };
+});
+
+app.get('/api/auth/sessions', async (req) => {
+  const compte = req.compte!;
+  return {
+    sessions: db.sessionsDe(compte.id).map((s) => ({ ...s, courante: s.id === req.sessionId })),
+  };
+});
+
+app.delete<{ Params: { id: string } }>('/api/auth/sessions/:id', async (req) => {
+  db.fermerSession(req.params.id, req.compte!.id);
+  return { ok: true };
+});
+
+/**
+ * Fermer TOUTES ses sessions sauf celle d'ou part la demande.
+ *
+ * Le geste qu'on cherche quand on a un doute : reprendre la main partout
+ * ailleurs sans se deconnecter de l'appareil qu'on a sous les yeux.
+ */
+app.delete('/api/auth/sessions', async (req) => {
+  const compte = req.compte!;
+  const autres = db.sessionsDe(compte.id).filter((s) => s.id !== req.sessionId);
+  for (const s of autres) db.fermerSession(s.id, compte.id);
+  return { fermees: autres.length };
+});
+
+/** Changer SON mot de passe : il faut l'ancien, même déjà connecté. */
+app.post<{ Body: { ancien?: string; nouveau?: string } }>(
+  '/api/auth/mot-de-passe',
+  async (req, reply) => {
+    const compte = req.compte!;
+    const identification = db.identification(compte.identifiant);
+    if (!identification || !(await verifier(req.body?.ancien ?? '', identification.hash)))
+      return reply.status(401).send({ error: 'Mot de passe actuel incorrect.' });
+
+    const nouveau = req.body?.nouveau ?? '';
+    const refus = validerMotDePasse(nouveau, compte.identifiant);
+    if (refus) return reply.status(400).send({ error: refus });
+
+    db.changerMotDePasse(compte.id, await hacher(nouveau));
+    // Toutes les autres sessions tombent : changer son mot de passe sert
+    // précisément à reprendre la main sur un appareil qu'on ne contrôle plus.
+    db.fermerSessionsDe(compte.id);
+    return ouvrirLaSession(compte, req, reply);
+  },
+);
+
+// ----------------------------------------------------- la gestion des comptes
+
+app.get('/api/comptes', async (req, reply) => {
+  if (!exige(req, reply, 'admin')) return reply;
+  return { comptes: db.comptes() };
+});
+
+app.post<{ Body: { identifiant?: string; nom?: string; motDePasse?: string; role?: Role } }>(
+  '/api/comptes',
+  async (req, reply) => {
+    if (!exige(req, reply, 'admin')) return reply;
+
+    const identifiant = normaliserIdentifiant(req.body?.identifiant ?? '');
+    const nom = (req.body?.nom ?? '').trim();
+    const motDePasse = req.body?.motDePasse ?? '';
+    const role = req.body?.role ?? 'habitant';
+
+    const refus =
+      validerIdentifiant(identifiant) ??
+      validerNom(nom) ??
+      validerMotDePasse(motDePasse, identifiant) ??
+      (ROLES.includes(role) ? null : 'Rôle inconnu.');
+    if (refus) return reply.status(400).send({ error: refus });
+
+    if (db.identification(identifiant))
+      return reply.status(409).send({ error: 'Cet identifiant est déjà pris.' });
+
+    return {
+      compte: db.creerCompte({
+        id: nouvelId('u'),
+        identifiant,
+        nom,
+        role,
+        hash: await hacher(motDePasse),
+      }),
+    };
+  },
+);
+
+app.patch<{ Params: { id: string }; Body: { nom?: string; role?: Role; actif?: boolean } }>(
+  '/api/comptes/:id',
+  async (req, reply) => {
+    if (!exige(req, reply, 'admin')) return reply;
+
+    const cible = db.compte(req.params.id);
+    if (!cible) return reply.status(404).send({ error: 'Compte introuvable.' });
+
+    // On ne se retire pas à soi-même ses propres droits : c'est la façon la
+    // plus courante de se retrouver enfermé dehors de sa propre maison.
+    if (cible.id === req.compte!.id && (req.body.role !== undefined || req.body.actif === false))
+      return reply
+        .status(400)
+        .send({ error: 'Vous ne pouvez pas modifier vos propres droits.' });
+
+    const perdAdmin =
+      cible.role === 'admin' && (req.body.role !== undefined || req.body.actif === false);
+    if (perdAdmin && db.nbAdmins() <= 1)
+      return reply.status(400).send({ error: 'Il doit rester au moins un administrateur actif.' });
+
+    if (req.body.nom !== undefined) {
+      const refus = validerNom(req.body.nom);
+      if (refus) return reply.status(400).send({ error: refus });
+    }
+    if (req.body.role !== undefined && !ROLES.includes(req.body.role))
+      return reply.status(400).send({ error: 'Rôle inconnu.' });
+
+    const modifie = db.modifierCompte(cible.id, req.body);
+    // Un compte désactivé ou rétrogradé ne doit pas garder ses sessions.
+    if (req.body.actif === false || req.body.role !== undefined) db.fermerSessionsDe(cible.id);
+    return { compte: modifie };
+  },
+);
+
+/** Réinitialiser le mot de passe de quelqu'un d'autre, sans connaître l'ancien. */
+app.post<{ Params: { id: string }; Body: { motDePasse?: string } }>(
+  '/api/comptes/:id/mot-de-passe',
+  async (req, reply) => {
+    if (!exige(req, reply, 'admin')) return reply;
+
+    const cible = db.compte(req.params.id);
+    if (!cible) return reply.status(404).send({ error: 'Compte introuvable.' });
+
+    const refus = validerMotDePasse(req.body?.motDePasse ?? '', cible.identifiant);
+    if (refus) return reply.status(400).send({ error: refus });
+
+    db.changerMotDePasse(cible.id, await hacher(req.body!.motDePasse!));
+    db.fermerSessionsDe(cible.id);
+    return { ok: true };
+  },
+);
+
+app.delete<{ Params: { id: string } }>('/api/comptes/:id', async (req, reply) => {
+  if (!exige(req, reply, 'admin')) return reply;
+
+  const cible = db.compte(req.params.id);
+  if (!cible) return reply.status(404).send({ error: 'Compte introuvable.' });
+  if (cible.id === req.compte!.id)
+    return reply.status(400).send({ error: 'On ne supprime pas son propre compte.' });
+  if (cible.role === 'admin' && db.nbAdmins() <= 1)
+    return reply.status(400).send({ error: 'Il doit rester au moins un administrateur actif.' });
+
+  db.supprimerCompte(cible.id);
+  return { ok: true };
+});
 
 // ------------------------------------------------------------------ diffusion
 
@@ -216,7 +660,7 @@ app.get<{ Querystring: { limit?: string } }>('/api/scenes/history', async (req) 
   runs: planificateur.historique(Math.min(200, Number(req.query.limit) || 40)),
 }));
 
-/** Le prochain départ programmé — ce que l'interface annonce en tête. */
+/** Le prochain départ programmé : ce que l'interface annonce en tête. */
 app.get('/api/scenes/next', async () => ({ next: planificateur.prochaine() }));
 
 app.get('/api/scenes', async () => ({ scenes: config!.scenes ?? [] }));
@@ -304,7 +748,7 @@ app.get('/api/homekit', async () => pont.etat(config!));
  *
  * Ce que cette route NE rend PAS, volontairement : la répartition par usage et
  * le classement des appareils. Un compteur général ne sait pas dire quelle
- * part revient au chauffage — il faudrait une mesure par circuit. La déduire
+ * part revient au chauffage : il faudrait une mesure par circuit. La déduire
  * serait l'inventer.
  */
 app.get<{ Querystring: { period?: string } }>('/api/energy', async (req) => {
@@ -397,7 +841,7 @@ app.get<{ Params: { id: string } }>('/api/cameras/:id/snapshot', async (req, rep
   }
 });
 
-/** Essai à blanc, avant d'enregistrer — comme pour les canaux. */
+/** Essai à blanc, avant d'enregistrer, comme pour les canaux. */
 app.post<{ Body: CameraConfig }>('/api/cameras/test', async (req, reply) => {
   const debut = Date.now();
   try {
@@ -426,7 +870,7 @@ app.put<{ Body: HouseConfig }>('/api/config', async (req, reply) => {
   return applyConfig(req.body, reply);
 });
 
-/** Réglages seuls — évite de renvoyer toute la maison pour changer une consigne. */
+/** Réglages seuls : évite de renvoyer toute la maison pour changer une consigne. */
 app.patch<{ Body: Partial<HouseConfig> }>('/api/config/settings', async (req, reply) => {
   const { zones: _z, devices: _d, ...rest } = req.body;
   return applyConfig({ ...config!, ...rest }, reply);
@@ -471,7 +915,7 @@ app.delete<{ Params: { id: string } }>('/api/config/devices/:id', async (req, re
   return applyConfig({ ...config!, devices }, reply);
 });
 
-/** Remet la maison de référence — utile quand on a tout cassé en explorant. */
+/** Remet la maison de référence : utile quand on a tout cassé en explorant. */
 app.post('/api/config/reset', async (_req, reply) => {
   return applyConfig(buildSeedConfig(), reply);
 });
@@ -539,11 +983,16 @@ listeAChange(config);
  *
  * Coder une adresse IP en dur dans une app mobile est le premier piège : elle
  * change au premier redémarrage de la box. Ici le serveur se présente, et le
- * téléphone le trouve — y compris à travers le tunnel, qui place le téléphone
+ * téléphone le trouve : y compris à travers le tunnel, qui place le téléphone
  * sur le même réseau.
  */
 let annonce: { stop: () => void } | null = null;
 try {
+  // Sur Linux, avahi-daemon tourne déjà et occupe le port mDNS. Si on lui
+  // confie l'annonce (deploiement/ruche-avahi.service), il faut faire taire
+  // celle-ci : deux répondeurs pour le même service peuvent se contredire.
+  if (process.env.BONJOUR === 'off') throw new Error('annonce désactivée (BONJOUR=off)');
+
   const { Bonjour } = await import('bonjour-service');
   const bonjour = new Bonjour();
   // Le nom du service et le nom d'hôte sont deux choses différentes : on
@@ -588,6 +1037,36 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 
+// ------------------------------------------------------------- l'interface
+//
+// Le serveur sert lui-même l'application compilée. Sans ça l'interface
+// dépendrait du serveur de développement Vite, donc d'un Mac allumé, alors que
+// tout l'intérêt est qu'elle vive sur la même machine que le cerveau : on
+// ouvre http://<la-maison>:3001 depuis n'importe quel téléphone du réseau, et
+// c'est cette adresse qu'on ajoute à l'écran d'accueil.
+//
+// `dist/` n'existe pas tant qu'on n'a pas compilé. On le dit et on continue :
+// en développement, Vite sert l'interface sur son propre port.
+const WEB = process.env.WEB_DIR ?? fileURLToPath(new URL('../../app/dist/', import.meta.url));
+
+if (existsSync(join(WEB, 'index.html'))) {
+  await app.register(fastifyStatic, { root: WEB, prefix: '/', index: ['index.html'] });
+
+  // L'interface a ses propres routes côté navigateur (/energie, /zone/z03…).
+  // Rouvrir l'application sur l'une d'elles doit renvoyer la coquille et non
+  // un 404, sinon le raccourci de l'écran d'accueil ouvre une page blanche.
+  app.setNotFoundHandler((req, reply) => {
+    if (req.method !== 'GET' || req.url.startsWith('/api') || req.url.startsWith('/ws')) {
+      return reply.status(404).send({ error: 'Route inconnue.' });
+    }
+    return reply.sendFile('index.html');
+  });
+
+  console.log(`[web] interface servie depuis ${WEB}`);
+} else {
+  console.log(`[web] aucune interface compilée : « npm run build -w @domo/app » pour la servir ici`);
+}
+
 try {
   await app.listen({ port: PORT, host: HOST });
   console.log(`[http] http://localhost:${PORT}  ·  base ${DB_FILE}`);
@@ -596,7 +1075,7 @@ try {
   // on dit ce qui se passe et ce qu'il faut faire.
   if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') {
     console.error(
-      `\n[http] Le port ${PORT} est déjà utilisé — un autre serveur tourne probablement.\n` +
+      `\n[http] Le port ${PORT} est déjà utilisé : un autre serveur tourne probablement.\n` +
         `       Pour voir lequel :  lsof -nP -iTCP:${PORT} -sTCP:LISTEN\n` +
         `       Pour le libérer  :  npm run libere-ports\n` +
         `       Ou changer de port :  PORT=3002 npm run dev\n`,

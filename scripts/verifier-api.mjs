@@ -1,3 +1,7 @@
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+const { jeton } = await ouvrirSession();
 const B = 'http://localhost:3001';
 const j = async (u, o) => { const r = await fetch(B+u, o); return [r.status, await r.json().catch(()=>null)]; };
 const post = (u, b) => j(u, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(b)});
@@ -6,7 +10,7 @@ const ok = (c, m) => console.log(`${c ? ' PASS' : ' ECHEC'}  ${m}`);
 // --- 1. temps reel : le WS pousse-t-il les etats ?
 const { WebSocket } = globalThis; // WebSocket natif de Node 22
 let pushes = 0, sawSnapshot = false;
-const ws = new WebSocket('ws://localhost:3001/ws');
+const ws = new WebSocket('ws://localhost:3001/ws', { headers: { authorization: `Bearer ${jeton}` } });
 await new Promise(r => { ws.onopen = r; ws.onerror = r; });
 ws.onmessage = e => { const m = JSON.parse(e.data); if (m.type==='snapshot') sawSnapshot = true; if (m.type==='state') pushes++; };
 await new Promise(r => setTimeout(r, 1500));
@@ -68,7 +72,7 @@ const [, cx] = await j('/api/connections');
 const mort = cx.connections.find(c => c.id === 'mort');
 const vivant = cx.connections.find(c => c.id === 'sim');
 ok(sc===200 && mort?.state === 'error' && vivant?.state === 'connected',
-   `Canal injoignable isole : "${mort?.detail}" — le simulateur continue`);
+   `Canal injoignable isole : "${mort?.detail}" : le simulateur continue`);
 
 const [cmdCode] = await post('/api/devices/z01.light.plafond/command', {kind:'switch',state:true});
 ok(cmdCode === 200, 'Les equipements simules repondent malgre le canal en panne');
