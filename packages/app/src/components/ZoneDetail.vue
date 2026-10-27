@@ -3,13 +3,13 @@
  * Le détail d'une pièce.
  *
  * L'idée directrice : en entrant, on doit pouvoir agir sur la pièce ENTIÈRE
- * avant de descendre dans le détail. D'où l'arc en tête — il commande d'un
+ * avant de descendre dans le détail. D'où l'arc en tête : il commande d'un
  * geste toutes les lampes de la pièce, ou sa consigne de chauffage quand il y
  * en a une. Le détail équipement par équipement vient après.
  *
  * Le même bloc sert à deux endroits : la page d'une pièce sur mobile, et le
  * panneau posé à côté du plan sur grand écran. En mode `compact` il se resserre
- * — titre plus petit, colonnes empilées — mais il ne perd aucune commande :
+ * : titre plus petit, colonnes empilées, mais il ne perd aucune commande :
  * une version amputée obligerait à changer de page pour la moindre action, ce
  * que le panneau est justement là pour éviter.
  */
@@ -55,7 +55,7 @@ const mode = computed<Mode>(() => {
 
 const climat = computed(() => findCap(house.stateOf(chauffage.value[0]?.id ?? ''), 'climate'));
 
-/** Niveau moyen des lampes allumées — 0 si la pièce est éteinte. */
+/** Niveau moyen des lampes allumées : 0 si la pièce est éteinte. */
 const niveauLumiere = computed(() => {
   const on = eclairages.value.filter((d) => findCap(house.stateOf(d.id), 'switch')?.state === true);
   if (!on.length) return 0;

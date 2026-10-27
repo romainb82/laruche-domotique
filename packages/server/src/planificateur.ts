@@ -10,7 +10,7 @@ import type { StateHub } from './state.js';
 import type { Db } from './db.js';
 
 /**
- * Le planificateur — ce qui fait partir une scène toute seule.
+ * Le planificateur : ce qui fait partir une scène toute seule.
  *
  * Trois principes, dans cet ordre d'importance.
  *
@@ -28,7 +28,7 @@ import type { Db } from './db.js';
  * Le retard d'une action est ce qui transforme une scène en séquence : « les
  * volets se ferment, puis les portes se verrouillent trente secondes après ».
  * Ces minuteries sont suivies pour qu'un rechargement de configuration les
- * annule — sinon une scène supprimée continuerait d'agir.
+ * annule, sinon une scène supprimée continuerait d'agir.
  */
 
 /** À quelle fréquence on regarde l'heure. Un départ part donc dans les 15 s. */
@@ -203,7 +203,7 @@ export class Planificateur {
    *
    * Un départ à la main passe outre l'interrupteur : couper une scène veut
    * dire « qu'elle ne parte plus toute seule », pas « qu'on ne puisse plus la
-   * jouer ». La condition, elle, s'applique dans les deux cas — c'est une
+   * jouer ». La condition, elle, s'applique dans les deux cas : c'est une
    * garde sur l'état de la maison, pas sur l'intention.
    */
   private refusEventuel(sc: SceneConfig, origin: ActionOrigin): string | null {

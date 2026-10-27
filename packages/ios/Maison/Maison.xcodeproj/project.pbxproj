@@ -37,7 +37,7 @@
 		0BCEDF6B12FE1E903C391FA8 /* AuditAccessibilite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditAccessibilite.swift; sourceTree = "<group>"; };
 		11B3BB46FA6AF282B8138202 /* SensorTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensorTile.swift; sourceTree = "<group>"; };
 		19FD420F1AD981334A21CF50 /* RoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomView.swift; sourceTree = "<group>"; };
-		35157A9EAAC19FD1C633D6E3 /* Maison.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Maison.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		35157A9EAAC19FD1C633D6E3 /* Maison.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Maison.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BEE9784BE38BC69089D4F6B /* DeviceTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTile.swift; sourceTree = "<group>"; };
 		50218D2C089858D57243E19D /* MaisonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaisonApp.swift; sourceTree = "<group>"; };
 		53E87B975A647668FD6A0A6E /* LightTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightTile.swift; sourceTree = "<group>"; };
@@ -186,7 +186,12 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					62BB7B7C4E479CBF12CEF402 = {
+						ProvisioningStyle = Automatic;
+					};
 					A97DD6544E06FC7B8D6F43CD = {
+						DevelopmentTeam = 55596QG4X8;
+						ProvisioningStyle = Automatic;
 						TestTargetID = 62BB7B7C4E479CBF12CEF402;
 					};
 				};
@@ -296,8 +301,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 55596QG4X8;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -343,6 +350,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55596QG4X8;
 				INFOPLIST_FILE = Sources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "La Ruche";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -391,8 +399,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 55596QG4X8;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -445,6 +455,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55596QG4X8;
 				INFOPLIST_FILE = Sources/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "La Ruche";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

@@ -26,7 +26,7 @@ import {
  * 2. **Aucune découverte n'existe.** Un équipement Modbus ne sait pas dire ce
  *    qu'il contient. On offre donc à la place un BALAYAGE : on lit une plage
  *    de registres et on montre ce qui s'y trouve, en direct. Ce n'est pas de
- *    la découverte, mais à l'usage ça revient au même — on voit quelle case
+ *    la découverte, mais à l'usage ça revient au même : on voit quelle case
  *    bouge quand on touche à la machine.
  */
 export class ModbusAdapter extends BaseAdapter {
@@ -38,7 +38,7 @@ export class ModbusAdapter extends BaseAdapter {
   private port: number;
   private unitId: number;
 
-  /** Les lectures déclarées, déjà analysées — une adresse fautive se voit au démarrage. */
+  /** Les lectures déclarées, déjà analysées : une adresse fautive se voit au démarrage. */
   private lectures: { device: DeviceConfig; read: ReadSpec; adresse: ModbusAddress }[] = [];
   /** Les blocs à demander, regroupés pour limiter le nombre d'allers-retours. */
   private blocs: { table: ModbusAddress['table']; debut: number; taille: number }[] = [];
@@ -60,7 +60,7 @@ export class ModbusAdapter extends BaseAdapter {
 
     // On sonde avant de se déclarer prêt, comme le canal HTTP. Ouvrir une
     // socket ne prouve rien : beaucoup de choses écoutent sur un port. Ce qui
-    // prouve qu'on parle à du Modbus, c'est une RÉPONSE — un refus en est une.
+    // prouve qu'on parle à du Modbus, c'est une RÉPONSE : un refus en est une.
     await this.sonder();
 
     const periode = Math.max(2, Number(this.ctx.connection.settings.pollSeconds) || 10) * 1000;
@@ -122,7 +122,7 @@ export class ModbusAdapter extends BaseAdapter {
    * Regroupe les lectures en blocs contigus.
    *
    * Une pompe à chaleur expose souvent vingt registres qui se suivent. Les
-   * demander un par un, c'est vingt allers-retours là où un seul suffit — et
+   * demander un par un, c'est vingt allers-retours là où un seul suffit, et
    * sur une liaison série derrière une passerelle, ça se compte en secondes.
    *
    * Les trous sont tolérés jusqu'à huit registres : au-delà, lire le vide
@@ -225,7 +225,7 @@ export class ModbusAdapter extends BaseAdapter {
     // Les capacités s'accumulent sur TOUT le cycle, pas bloc par bloc.
     //
     // Un thermostat lit sa consigne et son ambiante dans les registres de
-    // maintien, mais sa demande de chauffe dans les entrées TOR — deux tables,
+    // maintien, mais sa demande de chauffe dans les entrées TOR : deux tables,
     // donc deux blocs. Émettre après chaque bloc envoyait une capacité
     // « climat » complète à chaque fois, et celle du second bloc, reconstruite
     // à partir de rien, écrasait la consigne par sa valeur par défaut. Le
@@ -279,7 +279,7 @@ export class ModbusAdapter extends BaseAdapter {
   /**
    * Le balayage : à défaut de découverte, on montre ce qu'il y a.
    *
-   * Éteint tant qu'on ne l'a pas demandé — lire cinquante registres toutes les
+   * Éteint tant qu'on ne l'a pas demandé : lire cinquante registres toutes les
    * dix secondes sur un équipement qu'on ne connaît pas est une impolitesse
    * qu'on ne s'autorise pas par défaut.
    */
@@ -336,7 +336,7 @@ function estVrai(v: unknown): boolean {
 }
 
 function arrondi(v: number | undefined): string {
-  if (v === undefined || !Number.isFinite(v)) return '—';
+  if (v === undefined || !Number.isFinite(v)) return '-';
   const abs = Math.abs(v);
   return abs > 1e6 || (abs < 1e-4 && v !== 0) ? v.toExponential(2) : String(Number(v.toFixed(3)));
 }

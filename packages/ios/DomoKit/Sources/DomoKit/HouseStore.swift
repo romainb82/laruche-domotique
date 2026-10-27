@@ -7,7 +7,7 @@ import Observation
 ///
 ///  1. l'état vient TOUJOURS du flux temps réel, jamais du geste ;
 ///  2. entre l'envoi d'une commande et sa confirmation, l'équipement est
-///     `pending` — l'interface affiche « en cours », un troisième état.
+///     `pending` : l'interface affiche « en cours », un troisième état.
 @MainActor
 @Observable
 public final class HouseStore {

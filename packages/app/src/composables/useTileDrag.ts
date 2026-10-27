@@ -5,7 +5,7 @@ import { ref, type Ref } from 'vue';
  *
  * C'est ce qui permet à une tuile d'être à la fois un interrupteur et un
  * variateur : on la touche pour allumer, on glisse dessus pour régler. Sans
- * cette distinction, il faudrait un appui long — un geste que personne ne
+ * cette distinction, il faudrait un appui long : un geste que personne ne
  * découvre tout seul.
  *
  * Le seuil de 8 px est ce qui sépare un doigt qui appuie d'un doigt qui bouge.

@@ -1,8 +1,8 @@
 /**
  * Le canal HTTP, mis a l'epreuve contre un VRAI serveur.
  *
- * On monte un faux regulateur de piscine — format volontairement penible :
- * temperature en dixiemes, pompe imbriquee, cle avec un tiret — et on verifie
+ * On monte un faux regulateur de piscine : format volontairement penible :
+ * temperature en dixiemes, pompe imbriquee, cle avec un tiret, et on verifie
  * que le meme moteur de transformation le comprend sans code specifique.
  *
  * On verifie aussi ce qui ne se voit pas : qu'une seule requete sert tous les
@@ -10,6 +10,10 @@
  * reste de la maison.
  */
 import { createServer } from 'node:http';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const B = 'http://localhost:3001';
 const PORT = 18840;
@@ -65,7 +69,7 @@ const [, cfg0] = await j('/api/config');
 /**
  * On repart d'une maison saine : les executions precedentes laissent des
  * raccordements vers des canaux que ce test ne declare pas, et la validation
- * — a juste titre — refuserait la configuration.
+ * : a juste titre : refuserait la configuration.
  */
 const base = cfg0.devices
   .filter((d) => !d.id.startsWith('test.'))
@@ -160,7 +164,7 @@ ok(journal.ecritures[0] === '{"on":true}',
 await pause(3500);
 const [, st2] = await j('/api/state');
 ok(st2.states.find((s) => s.id === 'test.light.pompe')?.caps[0]?.state === true,
-   "L'état revient du matériel après écriture — la boucle est fermée");
+   "L'état revient du matériel après écriture : la boucle est fermée");
 
 // --- PANNE : un canal HTTP qui tombe n'emporte pas le reste ---
 panne = true;

@@ -34,7 +34,7 @@ let panne = false;
  * L'image.
  *
  * Du SVG plutot qu'un JPEG : un vrai JPEG anime demanderait un encodeur, et ce
- * qu'on veut prouver ici c'est la CHAINE — le serveur va chercher l'image, la
+ * qu'on veut prouver ici c'est la CHAINE : le serveur va chercher l'image, la
  * relaie, le navigateur l'affiche puis la redemande. Le relais accepte tout ce
  * qui commence par `image/`, donc le SVG emprunte exactement le meme chemin
  * qu'un JPEG de vraie camera.

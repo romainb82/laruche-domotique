@@ -66,7 +66,7 @@ public enum CoverMotion: String, Codable, Sendable {
 
 /// L'état d'un équipement, exprimé en capacités.
 ///
-/// Union discriminée sur `kind` côté JSON — d'où le `Codable` écrit à la main.
+/// Union discriminée sur `kind` côté JSON, d'où le `Codable` écrit à la main.
 public enum Capability: Codable, Sendable, Equatable {
     case power(on: Bool)
     case dim(level: Double)
@@ -105,7 +105,7 @@ public enum Capability: Codable, Sendable, Equatable {
         case let autre:
             throw DecodingError.dataCorruptedError(
                 forKey: .kind, in: c,
-                debugDescription: "Capacité inconnue « \(autre) » — le serveur est plus récent que l'app."
+                debugDescription: "Capacité inconnue « \(autre) » : le serveur est plus récent que l'app."
             )
         }
     }

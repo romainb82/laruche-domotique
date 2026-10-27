@@ -4,7 +4,7 @@ import DomoKit
 /// Un volet.
 ///
 /// Même métaphore que la lampe, retournée : le tablier descend depuis le haut,
-/// exactement comme le vrai. On glisse vers le bas pour fermer — le geste est
+/// exactement comme le vrai. On glisse vers le bas pour fermer : le geste est
 /// celui du volet lui-même.
 struct CoverTile: View {
     let device: Device

@@ -4,7 +4,7 @@
  * Deux moities tres differentes.
  *
  * La premiere est du calcul pur : a quelle heure part une scene. C'est le seul
- * endroit du projet ou une erreur ne se voit pas — un volet qui s'ouvre a 6 h
+ * endroit du projet ou une erreur ne se voit pas : un volet qui s'ouvre a 6 h
  * au lieu de 7 h pendant six mois ne leve aucune alerte. On verifie donc le
  * passage a l'heure d'ete, ou deux departs consecutifs de « 07:00 » sont
  * separes par 23 heures et non 24.
@@ -14,6 +14,10 @@
  * c'est le seul moyen de savoir.
  */
 import { prochaineOccurrence, decalageMinutes, decrireTrigger } from '../packages/shared/dist/index.js';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const B = 'http://localhost:3001';
 const TZ = 'Europe/Paris';
@@ -131,7 +135,7 @@ await pause(900);
 
 const [, refus] = await post('/api/scenes/test.gardee/apply');
 ok(refus?.ok === false && /Condition non remplie/.test(refus?.refus ?? ''),
-   `Condition fausse : la scène ne part pas — « ${refus?.refus} »`);
+   `Condition fausse : la scène ne part pas : « ${refus?.refus} »`);
 ok((await etat(lampeA)) === false, 'Et aucune lampe n’a bougé');
 
 // La garde devient vraie : la même scène part.

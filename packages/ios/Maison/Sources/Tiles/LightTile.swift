@@ -4,7 +4,7 @@ import DomoKit
 /// Un éclairage.
 ///
 /// La tuile EST le contrôle : on la touche pour allumer, on glisse dessus pour
-/// régler. Et elle se remplit de lumière à hauteur de ce qu'elle éclaire — la
+/// régler. Et elle se remplit de lumière à hauteur de ce qu'elle éclaire : la
 /// surface allumée est l'information, avant même le pourcentage.
 struct LightTile: View {
     let device: Device
@@ -71,7 +71,7 @@ struct LightTile: View {
         .accessibilityAddTraits(.isButton)
         // Le geste de glissement n'existe pas sous VoiceOver : le balayage est
         // capté par le rotor. Sans l'action ajustable ci-dessous, l'intensité
-        // serait inatteignable — la tuile n'a aucun bouton +/- de secours.
+        // serait inatteignable : la tuile n'a aucun bouton +/- de secours.
         // Et comme cette action s'empare du balayage, il faut redonner
         // explicitement la bascule, sinon allumer devient impossible.
         .accessibilityAction {
@@ -89,7 +89,7 @@ struct LightTile: View {
     }
 
     /// Toucher = basculer, glisser = régler. Le seuil sépare le doigt qui
-    /// appuie du doigt qui bouge — pas d'appui long à deviner.
+    /// appuie du doigt qui bouge : pas d'appui long à deviner.
     private func geste(hauteur: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { g in

@@ -7,7 +7,7 @@ import type { DeviceType, Metric } from './types.js';
  * « Général » pour ce qui n'appartient à aucune pièce, la piscine et l'extérieur.
  *
  * Ces chiffres sont une ESTIMATION issue de la capture du plan. Tout est
- * modifiable depuis l'écran Paramétrage — ce fichier ne sert qu'à ce que
+ * modifiable depuis l'écran Paramétrage : ce fichier ne sert qu'à ce que
  * l'application s'ouvre déjà sur quelque chose de reconnaissable.
  */
 
@@ -300,7 +300,7 @@ const CAP_SLUG: Record<DeviceType, string> = {
  * nom l'annonce. Un « Réveil » qui ouvre les volets d'une chambre où quelqu'un
  * dort encore n'est pas une commodité, c'est une nuisance.
  *
- * Tout est modifiable depuis l'écran Paramétrage — c'est un point de départ
+ * Tout est modifiable depuis l'écran Paramétrage : c'est un point de départ
  * volontairement prudent, pas une vérité.
  */
 function buildScenes(devices: DeviceConfig[]): SceneConfig[] {
@@ -334,7 +334,7 @@ function buildScenes(devices: DeviceConfig[]): SceneConfig[] {
       ],
     },
     {
-      // On éteint partout — mais on ne ferme que les pièces de vie : personne
+      // On éteint partout, mais on ne ferme que les pièces de vie : personne
       // n'a envie de retrouver ses chambres dans le noir en rentrant.
       id: 'depart', label: 'Départ', icon: 'porte', order: 1,
       // À la demande : rien ne permet encore de savoir que la maison est vide.
@@ -359,7 +359,7 @@ function buildScenes(devices: DeviceConfig[]): SceneConfig[] {
       ],
     },
     {
-      // La seule qui touche les chambres — et son nom le dit.
+      // La seule qui touche les chambres, et son nom le dit.
       id: 'coucher', label: 'Coucher', icon: 'lune', order: 3,
       enabled: false,
       trigger: { kind: 'time', at: '23:30', days: [...TOUS_LES_JOURS] },
@@ -391,7 +391,7 @@ export function buildSeedConfig(): HouseConfig {
 
     z.devices.forEach((d, di) => {
       devices.push({
-        // 'z03.cover.volet-baie' — la zone en préfixe permet d'agir par zone
+        // 'z03.cover.volet-baie' : la zone en préfixe permet d'agir par zone
         // sans table de correspondance, et de s'y retrouver dans un journal.
         id: `${z.id}.${CAP_SLUG[d.type]}.${d.slug}`,
         zoneId: z.id,
@@ -424,7 +424,7 @@ export function buildSeedConfig(): HouseConfig {
     ],
     heating: {
       // Régulation unique aujourd'hui : la maison n'a pas d'émetteur pilotable
-      // par pièce. Passer en 'zoned' le jour où elle en aura — rien d'autre à changer.
+      // par pièce. Passer en 'zoned' le jour où elle en aura : rien d'autre à changer.
       mode: 'single',
       emitter: 'unknown',
       minSetpoint: 14,

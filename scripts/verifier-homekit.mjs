@@ -5,7 +5,7 @@
  * demande SRP, ed25519 et ChaCha20, soit un client complet. En revanche on peut
  * verifier tout le reste, et notamment les deux choses qui comptent :
  *
- *   · qu'un VRAI serveur HAP ecoute — il repond 470 a qui n'est pas associe,
+ *   · qu'un VRAI serveur HAP ecoute : il repond 470 a qui n'est pas associe,
  *     ce qu'aucun autre serveur ne fait ;
  *   · que le pont expose les bons equipements, et DIT ce qu'il a laisse dehors
  *     plutot que de le taire.
@@ -14,6 +14,10 @@
  * sur le reseau local : c'est precisement ce qu'on teste.
  */
 import { connect } from 'node:net';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const B = 'http://localhost:3001';
 const PORT_PONT = 51830; // pas le port par defaut : on ne marche pas sur un vrai pont
@@ -75,18 +79,18 @@ const [codeMauvais, mauvais] = await put('/api/config', {
   ...cfgPropre, homekit: { enabled: true, name: 'Test', pin: '1234', port: PORT_PONT },
 });
 ok(codeMauvais === 400 && /031-45-154/.test(JSON.stringify(mauvais?.issues ?? '')),
-   `Code d'association mal formé refusé : « ${mauvais?.issues?.[0]?.message ?? '—'} »`);
+   `Code d'association mal formé refusé : « ${mauvais?.issues?.[0]?.message ?? '-'} »`);
 
 const [codeSuite] = await put('/api/config', {
   ...cfgPropre, homekit: { enabled: true, name: 'Test', pin: '111-11-111', port: PORT_PONT },
 });
-ok(codeSuite === 400, 'Code d’association trop régulier refusé — il serait devinable');
+ok(codeSuite === 400, 'Code d’association trop régulier refusé : il serait devinable');
 
 const [codeUsine, usine] = await put('/api/config', {
   ...cfgPropre, homekit: { enabled: true, name: 'Test', pin: '031-45-154', port: PORT_PONT },
 });
 ok(codeUsine === 200 && (usine?.warnings ?? []).some((w) => /usine/.test(w.message)),
-   'Code d’usine accepté mais signalé — imprudent, pas cassé');
+   'Code d’usine accepté mais signalé : imprudent, pas cassé');
 
 // ----------------------------------------------------------- ouverture du pont
 
@@ -101,7 +105,7 @@ ok(codeOuvert === 200, 'Configuration acceptée avec le pont ouvert');
  *
  * Trois secondes suffisaient d'habitude et ont manque une fois, en suite
  * complete, sur une machine chargee. Une attente elastique dit la meme chose
- * sans dependre de la charge — et en cas d'echec on imprime ce que le serveur
+ * sans dependre de la charge, et en cas d'echec on imprime ce que le serveur
  * pensait, parce qu'un « pont non publie » sans contexte n'est pas
  * diagnosticable apres coup.
  */
@@ -115,14 +119,14 @@ if (!pont?.published) {
   const [, vu] = await j('/api/config');
   console.log(`       (le serveur voyait homekit = ${JSON.stringify(vu?.homekit)})`);
 }
-ok(pont?.published === true, `Pont publié ${pont?.error ? `— ${pont.error}` : ''}`);
+ok(pont?.published === true, `Pont publié ${pont?.error ? `,  ${pont.error}` : ''}`);
 ok(pont?.exposes === exposables.length,
    `${pont?.exposes} accessoires exposés, pour ${exposables.length} équipements exposables`);
 ok(pont?.skipped?.length === inexposables.length,
    `${pont?.skipped?.length} équipement(s) écarté(s) sur ${inexposables.length} sans équivalent HomeKit`);
 const ecartes = pont?.skipped ?? [];
 ok(ecartes.length > 0 && ecartes.every((s) => s.raison && s.raison.length > 10),
-   `Chaque équipement écarté porte une raison lisible : « ${ecartes[0]?.raison ?? '—'} »`);
+   `Chaque équipement écarté porte une raison lisible : « ${ecartes[0]?.raison ?? '-'} »`);
 
 // --- LA PREUVE : un vrai serveur HAP, pas un serveur HTTP quelconque ---
 const ligne = await demanderAccessoires(PORT_PONT);

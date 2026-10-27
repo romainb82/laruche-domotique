@@ -16,7 +16,7 @@ import { poser } from './champs.js';
 /**
  * Le canal MQTT.
  *
- * Un seul adaptateur pour tout ce qui parle MQTT — Shelly, Zigbee2MQTT,
+ * Un seul adaptateur pour tout ce qui parle MQTT : Shelly, Zigbee2MQTT,
  * Tasmota, ESPHome, un script maison. La différence entre ces matériels ne vit
  * pas dans du code mais dans les lectures et écritures déclarées par
  * l'utilisateur, traduites par la chaîne de transformations.
@@ -199,12 +199,12 @@ function lisible(e: Error): string {
     return causes.find((c) => !c.startsWith('Aggregate')) ?? causes[0] ?? 'Connexion impossible.';
   }
   const m = e.message || String(e);
-  if (m.includes('ECONNREFUSED')) return "Le broker refuse la connexion — vérifie l'adresse et le port.";
+  if (m.includes('ECONNREFUSED')) return "Le broker refuse la connexion : vérifie l'adresse et le port.";
   if (m.includes('ENOTFOUND') || m.includes('EAI_AGAIN')) return "Adresse du broker introuvable.";
   if (m.includes('ETIMEDOUT')) return 'Le broker ne répond pas.';
   // « connack timeout » : la socket s'ouvre mais l'échange MQTT n'aboutit pas.
   // C'est le symptôme d'une adresse dans le vide ou d'un pare-feu.
-  if (m.toLowerCase().includes('connack')) return "Aucune réponse MQTT — l'adresse est-elle bien celle d'un broker ?";
+  if (m.toLowerCase().includes('connack')) return "Aucune réponse MQTT : l'adresse est-elle bien celle d'un broker ?";
   if (m.toLowerCase().includes('not authorized')) return 'Identifiants refusés par le broker.';
   if (m.includes('EHOSTUNREACH') || m.includes('ENETUNREACH')) return 'Réseau injoignable depuis le serveur.';
   return m || 'Connexion impossible.';

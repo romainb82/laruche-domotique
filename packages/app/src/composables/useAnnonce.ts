@@ -3,8 +3,8 @@ import { ref } from 'vue';
 /**
  * La voix de l'application.
  *
- * Tout ce que l'interface montre par un changement visuel — une scene jouee,
- * un canal qui tombe, un volet qui arrive — doit aussi pouvoir etre DIT. Sans
+ * Tout ce que l'interface montre par un changement visuel : une scene jouee,
+ * un canal qui tombe, un volet qui arrive : doit aussi pouvoir etre DIT. Sans
  * ca, un lecteur d'ecran ne saura jamais que la commande a abouti : il faudrait
  * que le focus se trouve pile sur le bon element au bon instant.
  *

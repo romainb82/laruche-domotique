@@ -14,7 +14,7 @@ import XCTest
 /// Deux pièges ont coûté cher et expliquent la forme du code ci-dessous.
 ///
 /// 1. XCUITest ne voit que ce qui est à l'écran. Un premier jet ne mesurait
-///    que le haut de l'accueil et laissait passer des boutons de 40 pt — d'où
+///    que le haut de l'accueil et laissait passer des boutons de 40 pt, d'où
 ///    le défilement, et les trois écrans, choisis pour montrer chaque sorte de
 ///    tuile.
 /// 2. Interroger les éléments un par un pendant que la vue bouge échoue de
@@ -24,7 +24,7 @@ import XCTest
 private let cibleMin: CGFloat = 44
 
 /// XCUITest rend des fractions : une cible nominale de 44 pt se relève parfois
-/// à 43,7. Un point de marge absorbe ce bruit sans rien céder — un bouton
+/// à 43,7. Un point de marge absorbe ce bruit sans rien céder : un bouton
 /// réellement à 40 pt reste pris.
 private let bruitDeMesure: CGFloat = 1
 
@@ -61,7 +61,7 @@ final class AuditAccessibilite: XCTestCase {
         app.launch()
         // La configuration arrive du serveur : rien n'est mesurable avant.
         XCTAssertTrue(app.buttons.element(boundBy: 0).waitForExistence(timeout: 25),
-                      "L'app n'a affiché aucune commande — serveur injoignable ?")
+                      "L'app n'a affiché aucune commande : serveur injoignable ?")
         return app
     }
 
@@ -90,7 +90,7 @@ final class AuditAccessibilite: XCTestCase {
     /// Descend la page en relevant à chaque palier.
     ///
     /// Sans ce défilement l'audit ne mesurait que le premier tiers de la page
-    /// et se déclarait satisfait — un test sans portée est pire que pas de test.
+    /// et se déclarait satisfait : un test sans portée est pire que pas de test.
     private func releve(_ app: XCUIApplication) -> Set<Commande> {
         var tout: Set<Commande> = []
         for passage in 0..<8 {

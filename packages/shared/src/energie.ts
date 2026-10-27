@@ -11,7 +11,7 @@ import { dateLocale, instantLocal } from './horaire.js';
  *
  * 1. **Un trou n'est jamais comblé.** Si le serveur a été arrêté trois jours,
  *    la dernière mesure d'avant ne vaut pas pour ces trois jours. Au-delà de
- *    {@link TROU_MAX_MS} on cesse de compter et on le dit — mieux vaut annoncer
+ *    {@link TROU_MAX_MS} on cesse de compter et on le dit : mieux vaut annoncer
  *    « 60 % de la période mesurée » qu'un total inventé.
  * 2. **Les bornes sont locales, pas UTC.** « Aujourd'hui » commence à minuit
  *    chez soi. Un jour de changement d'heure fait 23 ou 25 heures, et le
@@ -32,10 +32,10 @@ export const PERIODE_LABELS: Record<Periode, string> = {
  * Le simulateur bat toutes les 30 s, un canal HTTP interroge toutes les 30 s
  * et un canal Modbus toutes les 10 s : un quart d'heure laisse une marge
  * confortable. Une vraie coupure dure des heures, donc au pire on invente les
- * quinze premières minutes — négligeable — au lieu de combler trois jours.
+ * quinze premières minutes : négligeable : au lieu de combler trois jours.
  *
- * Une source plus lente que ce seuil — une courbe de charge au pas de trente
- * minutes, par exemple — doit passer son propre `trouMax` à {@link integrer},
+ * Une source plus lente que ce seuil : une courbe de charge au pas de trente
+ * minutes, par exemple : doit passer son propre `trouMax` à {@link integrer},
  * sinon toutes ses mesures seraient écartées.
  */
 export const TROU_MAX_MS = 15 * 60_000;
@@ -60,7 +60,7 @@ export interface Seau {
 export interface Bornes {
   debut: number;
   fin: number;
-  /** La même période, juste avant — pour dire « par rapport à hier ». */
+  /** La même période, juste avant, pour dire « par rapport à hier ». */
   precedentDebut: number;
   precedentFin: number;
   titre: string;
@@ -121,7 +121,7 @@ export function bornesPeriode(periode: Periode, maintenant: Date, fuseau: string
  * réellement mesurée.
  *
  * Chaque paire de mesures consécutives vaut sa puissance moyenne pendant sa
- * durée — la règle du trapèze, qui vaut mieux qu'un escalier quand la
+ * durée : la règle du trapèze, qui vaut mieux qu'un escalier quand la
  * puissance varie continûment. Un intervalle plus long que {@link TROU_MAX_MS}
  * n'est pas compté du tout.
  */

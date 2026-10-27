@@ -6,8 +6,8 @@ import { SimEngine } from '../drivers/sim.js';
  * Le simulateur, en adaptateur.
  *
  * Il ne disparaît jamais : il sert TOUS les équipements qui n'ont pas encore de
- * raccordement. C'est ce qui permet d'équiper la maison pièce par pièce — une
- * chambre en vrai, le reste en simulé — sans que l'application fasse la
+ * raccordement. C'est ce qui permet d'équiper la maison pièce par pièce : une
+ * chambre en vrai, le reste en simulé, sans que l'application fasse la
  * différence.
  */
 export class SimAdapter extends BaseAdapter {

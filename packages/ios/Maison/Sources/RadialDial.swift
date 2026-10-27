@@ -3,7 +3,7 @@ import SwiftUI
 /// L'arc de réglage.
 ///
 /// Un cadran ouvert vers le bas : le vide en bas porte les bornes, donc
-/// l'échelle se lit sans graduation. 270° de course — plus précis qu'un
+/// l'échelle se lit sans graduation. 270° de course : plus précis qu'un
 /// curseur linéaire sur la même surface.
 ///
 /// Le tracé passe par des `Shape`, qui reçoivent leur rectangle et se calculent
@@ -88,8 +88,8 @@ struct RadialDial: View {
                     }
             )
             .opacity(desactive ? 0.45 : 1)
-            // Le cadran se balayait en quatre ou cinq arrêts séparés — « 21,5 »,
-            // « degrés », « 14 », « 24 » — sans qu'aucun ne puisse le régler :
+            // Le cadran se balayait en quatre ou cinq arrêts séparés : « 21,5 »,
+            // « degrés », « 14 », « 24 », sans qu'aucun ne puisse le régler :
             // le geste circulaire est capté par le rotor de VoiceOver.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(legende.isEmpty ? "Réglage" : legende)
@@ -118,7 +118,7 @@ struct RadialDial: View {
         .disabled(desactive)
         .opacity(desactive ? 0.35 : 1)
         // Un « moins » nu ne dit pas de quoi : plusieurs cadrans se suivent.
-        .accessibilityLabel("\(libelle)\(legende.isEmpty ? "" : " — \(legende)")")
+        .accessibilityLabel("\(libelle)\(legende.isEmpty ? "" : " : \(legende)")")
     }
 
     private func pousser(_ delta: Double) {

@@ -22,7 +22,7 @@ const PANNE_DE_COMMUNICATION = -70402;
  * Le dossier de stockage ne se fixe qu'UNE fois pour tout le processus.
  *
  * La bibliothèque refuse un second appel, et le pont mourait donc à sa
- * deuxième ouverture — soit dès le premier changement de réglage, ce qui est
+ * deuxième ouverture, soit dès le premier changement de réglage, ce qui est
  * exactement le moment où on l'ouvre pour de bon.
  */
 let stockageFixe = false;
@@ -36,8 +36,8 @@ function fixerStockage(dossier: string): void {
 /**
  * Le pont HomeKit.
  *
- * Il expose la maison à l'app Maison d'Apple — donc à Siri, au widget, aux
- * automatisations d'Apple et aux autres membres du foyer — sans rien changer
+ * Il expose la maison à l'app Maison d'Apple, donc à Siri, au widget, aux
+ * automatisations d'Apple et aux autres membres du foyer, sans rien changer
  * au modèle. Le pont est un CLIENT du cerveau, exactement comme l'interface
  * web : il lit l'état, il transmet les commandes, et il n'invente rien.
  *
@@ -53,8 +53,8 @@ function fixerStockage(dossier: string): void {
  *    dernière valeur connue serait pire que de ne rien dire.
  *
  * Ce qui n'est pas exposé, et pourquoi : le pH, le redox et la puissance n'ont
- * aucun service HomeKit correspondant. Les faire passer pour autre chose — une
- * température, un capteur de lumière — donnerait des relevés absurdes dans
+ * aucun service HomeKit correspondant. Les faire passer pour autre chose : une
+ * température, un capteur de lumière : donnerait des relevés absurdes dans
  * l'app Maison. Ils restent dans l'app du projet, qui sait les afficher.
  */
 export class PontHomeKit {
@@ -313,7 +313,7 @@ export class PontHomeKit {
     cible.onGet(() => Characteristic.TargetHeatingCoolingState.HEAT);
   }
 
-  /** Rend faux si la grandeur n'a pas d'équivalent HomeKit — et le dit. */
+  /** Rend faux si la grandeur n'a pas d'équivalent HomeKit, et le dit. */
   private monterCapteur(a: Accessory, device: DeviceConfig): boolean {
     const valeur = (e: DeviceState) => findCap(e, 'sensor')?.value ?? 0;
 

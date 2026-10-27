@@ -31,7 +31,7 @@ struct ClimateTile: View {
 
             HStack(spacing: 10) {
                 pas("minus", -0.5, "Diminuer la consigne")
-                Text(climat.map { String(format: "%.1f", $0.setpoint) } ?? "—")
+                Text(climat.map { String(format: "%.1f", $0.setpoint) } ?? "-")
                     .police(24, .semibold, .monospaced)
                     .frame(width: 62)
                     .accessibilityLabel("Consigne")

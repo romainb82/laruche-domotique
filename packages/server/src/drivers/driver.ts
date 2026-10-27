@@ -4,7 +4,7 @@ import type { Capability, DeviceConfig } from '@domo/shared';
  * État de départ plausible pour un équipement.
  *
  * Sert au simulateur comme aux adaptateurs réels : tant qu'un module n'a rien
- * publié, on affiche une valeur cohérente plutôt qu'un écran vide — mais
+ * publié, on affiche une valeur cohérente plutôt qu'un écran vide, mais
  * l'équipement reste marqué hors ligne, donc l'interface ne ment pas.
  */
 export function initialCaps(device: DeviceConfig): Capability[] {

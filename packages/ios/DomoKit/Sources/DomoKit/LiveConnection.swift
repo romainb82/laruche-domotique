@@ -5,7 +5,7 @@ import Foundation
 /// Même règle que sur le web : l'état affiché vient TOUJOURS d'ici, jamais du
 /// geste de l'utilisateur. Un volet qui bouge se voit bouger.
 ///
-/// La reconnexion est automatique et silencieuse — une maison ne doit pas
+/// La reconnexion est automatique et silencieuse : une maison ne doit pas
 /// rester muette parce qu'un serveur a redémarré ou qu'on a changé de réseau.
 public actor LiveConnection {
     public enum Event: Sendable {
@@ -56,7 +56,7 @@ public actor LiveConnection {
         self.task = task
         task.resume()
         // On n'annonce PAS « connecté » ici : ouvrir une socket ne prouve rien.
-        // C'est le premier message reçu qui fait foi — sinon l'app afficherait
+        // C'est le premier message reçu qui fait foi, sinon l'app afficherait
         // un voyant vert devant un serveur muet.
         await receive()
     }

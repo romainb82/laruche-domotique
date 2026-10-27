@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
   valeur: number;
   min: number;
   max: number;
-  /** Ce qu'on écrit au centre — déjà formaté. */
+  /** Ce qu'on écrit au centre : déjà formaté. */
   texte: string;
   unite?: string;
   /** Légende sous le chiffre. */

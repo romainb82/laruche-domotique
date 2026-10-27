@@ -79,8 +79,7 @@ const presetsUtiles = computed(() => {
 const presetActif = computed(() => props.presets.find((p) => p.id === presetChoisi.value));
 
 /**
- * Applique un pré-réglage. `{id}` est remplacé par l'identifiant du module —
- * c'est la seule chose que l'utilisateur ait à connaître.
+ * Applique un pré-réglage. `{id}` est remplacé par l'identifiant du module : * c'est la seule chose que l'utilisateur ait à connaître.
  */
 function appliquerPreset() {
   const p = presetActif.value;
@@ -225,7 +224,7 @@ function texteVersTable(texte: string): Record<string, string | number | boolean
       <!-- lectures -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="label">Lectures — d'où vient l'état</p>
+          <p class="label">Lectures, d'où vient l'état</p>
           <div class="flex gap-1">
             <button
               v-if="candidatsUtiles.length"
@@ -323,7 +322,7 @@ function texteVersTable(texte: string): Record<string, string | number | boolean
       <!-- écritures -->
       <div v-if="COMMANDES.length" class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="label">Écritures — où partent les commandes</p>
+          <p class="label">Écritures : où partent les commandes</p>
           <button class="press rounded-md bg-ink/[0.06] px-2 py-1 text-[11px] font-medium" @click="ajouterEcriture">
             + Écriture
           </button>
@@ -337,7 +336,7 @@ function texteVersTable(texte: string): Record<string, string | number | boolean
             <button class="press text-[11px] text-crit" @click="d.binding.writes.splice(i, 1)">Retirer</button>
           </div>
           <input v-model="w.target" class="input font-mono text-xs" placeholder="topic ou chemin de commande" />
-          <input v-model="w.payload" class="input font-mono text-xs" :placeholder="`charge utile — ${JETON}`" />
+          <input v-model="w.payload" class="input font-mono text-xs" :placeholder="`charge utile : ${JETON}`" />
           <p class="hint">
             <code>{{ JETON }}</code> est remplacé par la valeur après transformation.
           </p>
@@ -384,7 +383,7 @@ function texteVersTable(texte: string): Record<string, string | number | boolean
 
       <p v-if="!d.binding.reads.length && !d.binding.writes.length" class="flex items-start gap-2 text-xs text-warn">
         <Icon name="alerte" :size="14" class="mt-px" />
-        Raccordé mais sans lecture ni écriture — il ne se passera rien.
+        Raccordé mais sans lecture ni écriture : il ne se passera rien.
       </p>
     </div>
   </div>

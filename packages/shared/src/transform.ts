@@ -17,8 +17,7 @@ import type { Transform } from './wiring.js';
  *
  * Accepte le JSON comme le texte nu, parce que le matériel réel fait les deux :
  * Shelly publie du JSON, un vieux module publie `ON`.
- * Les segments peuvent contenir des points s'ils sont entre crochets —
- * `params['switch:0'].output` — cas fréquent chez Shelly.
+ * Les segments peuvent contenir des points s'ils sont entre crochets : * `params['switch:0'].output` : cas fréquent chez Shelly.
  */
 export function readPath(raw: string, path: string): unknown {
   let node: unknown;
@@ -114,7 +113,7 @@ function applyOne(v: unknown, step: Transform): unknown {
 /**
  * Substitue la valeur dans le gabarit de charge utile.
  *
- * `{{valeur}}` accepte aussi `{{value}}` — on écrit du français ici, mais la
+ * `{{valeur}}` accepte aussi `{{value}}` : on écrit du français ici, mais la
  * documentation du matériel est en anglais et on ne va pas piéger l'utilisateur
  * sur ce détail.
  */
@@ -169,7 +168,7 @@ function tronquer(s: string, n = 60): string {
  *
  * Ce n'est pas du code spécifique à une marque : ce sont des valeurs par défaut
  * que l'interface proposera, et que l'utilisateur peut modifier entièrement.
- * Ajouter une marque revient à ajouter une entrée dans cette liste — jamais à
+ * Ajouter une marque revient à ajouter une entrée dans cette liste : jamais à
  * toucher au moteur.
  */
 export interface Preset {
@@ -184,7 +183,7 @@ export interface Preset {
 export const PRESETS: Preset[] = [
   {
     id: 'shelly-relais',
-    label: 'Shelly — relais (Gen 2/3)',
+    label: 'Shelly : relais (Gen 2/3)',
     hint: 'Module encastré derrière un interrupteur. `{id}` sera remplacé par l’identifiant du module.',
     kind: 'mqtt',
     reads: [
@@ -196,7 +195,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'shelly-volet',
-    label: 'Shelly — volet roulant',
+    label: 'Shelly : volet roulant',
     hint: 'Le module publie la position en pourcentage d’ouverture.',
     kind: 'mqtt',
     reads: [
@@ -210,7 +209,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'z2m-interrupteur',
-    label: 'Zigbee2MQTT — interrupteur',
+    label: 'Zigbee2MQTT : interrupteur',
     hint: 'Topic de la forme `zigbee2mqtt/<nom du module>`.',
     kind: 'mqtt',
     reads: [
@@ -222,7 +221,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'z2m-capteur',
-    label: 'Zigbee2MQTT — capteur de température',
+    label: 'Zigbee2MQTT : capteur de température',
     hint: 'Un seul topic porte température, humidité et batterie.',
     kind: 'mqtt',
     reads: [
@@ -232,7 +231,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'z2m-volet',
-    label: 'Zigbee2MQTT — volet roulant',
+    label: 'Zigbee2MQTT : volet roulant',
     hint: 'Attention : beaucoup de volets Zigbee comptent la FERMETURE. L’inversion est déjà en place.',
     kind: 'mqtt',
     reads: [
@@ -257,7 +256,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'http-json',
-    label: 'API HTTP — mesure JSON',
+    label: 'API HTTP : mesure JSON',
     hint: 'Interrogé à intervalle régulier. Idéal pour un régulateur de piscine ou une passerelle.',
     kind: 'http',
     reads: [
@@ -267,11 +266,11 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'modbus-temperature',
-    label: 'Modbus — température au dixième',
+    label: 'Modbus : température au dixième',
     hint:
       'Le cas le plus courant du matériel technique : un entier signé qui vaut ' +
       'dix fois la température. `holding:100` se lit « registre de maintien, ' +
-      'adresse 100 » — l’adresse commence à 0, pas à 40001.',
+      'adresse 100 » : l’adresse commence à 0, pas à 40001.',
     kind: 'modbus',
     reads: [
       { source: 'holding:100:int16', path: '', into: 'sensor.value', pipeline: [{ op: 'scale', factor: 0.1, offset: 0 }, { op: 'round', decimals: 1 }] },
@@ -280,7 +279,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'modbus-consigne',
-    label: 'Modbus — consigne de chauffage',
+    label: 'Modbus : consigne de chauffage',
     hint:
       'Lecture de la consigne et de la température ambiante, écriture de la ' +
       'consigne. Les trois adresses sont à relever dans la documentation du ' +
@@ -297,7 +296,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'modbus-relais',
-    label: 'Modbus — relais tout ou rien',
+    label: 'Modbus : relais tout ou rien',
     hint: 'Une bobine se lit et s’écrit. Une entrée TOR (`discrete:`) se lit seulement.',
     kind: 'modbus',
     reads: [
@@ -309,7 +308,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'modbus-compteur',
-    label: 'Modbus — compteur d’énergie (flottant 32 bits)',
+    label: 'Modbus : compteur d’énergie (flottant 32 bits)',
     hint:
       'Une valeur 32 bits occupe DEUX registres. Si la lecture donne un nombre ' +
       'absurde, essaie `float32-swap` : la moitié du matériel inverse les deux ' +

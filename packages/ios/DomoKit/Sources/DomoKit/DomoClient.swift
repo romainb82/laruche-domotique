@@ -3,7 +3,7 @@ import Foundation
 /// Le client du cerveau.
 ///
 /// Volontairement mince : le serveur porte toute l'intelligence, l'app ne fait
-/// que demander et écouter. Aucune mise à jour optimiste ici non plus — on
+/// que demander et écouter. Aucune mise à jour optimiste ici non plus : on
 /// envoie la commande, et on attend que le serveur dise ce qui s'est passé.
 public actor DomoClient {
     public let base: URL
@@ -49,7 +49,7 @@ public actor DomoClient {
 
     private struct CommandResponse: Decodable { let ok: Bool; let state: DeviceState? }
 
-    /// Action groupée — éteindre une pièce, fermer tous les volets.
+    /// Action groupée : éteindre une pièce, fermer tous les volets.
     public func sendBulk(_ command: Command, to deviceIds: [String]) async throws {
         struct Corps: Encodable { let deviceIds: [String]; let command: Command }
         let _: BulkResponse = try await post("/api/commands/bulk",
@@ -58,8 +58,7 @@ public actor DomoClient {
 
     private struct BulkResponse: Decodable { let ok: Bool; let failed: Int }
 
-    /// Joue une scène. Le retour dit combien d'équipements n'ont pas répondu —
-    /// une scène à moitié appliquée doit se voir.
+    /// Joue une scène. Le retour dit combien d'équipements n'ont pas répondu : /// une scène à moitié appliquée doit se voir.
     @discardableResult
     public func applyScene(_ id: String) async throws -> SceneResult {
         try await post("/api/scenes/\(id)/apply", body: EmptyBody())

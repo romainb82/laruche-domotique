@@ -13,7 +13,7 @@ import type {
  * Le changement de fond par rapport au driver unique : **plusieurs adaptateurs
  * tournent en même temps**. Une maison réelle a un broker MQTT pour les
  * modules, une API HTTP pour la piscine, plus tard du Modbus pour la pompe à
- * chaleur — et le simulateur pour tout ce qui n'est pas encore installé.
+ * chaleur, et le simulateur pour tout ce qui n'est pas encore installé.
  *
  * Chaque équipement choisit sa connexion. Aucun ne choisit pour les autres.
  */
@@ -43,7 +43,7 @@ export interface Adapter {
    */
   candidates(): Candidate[];
 
-  /** Vide la liste des candidats — après adoption, ou sur demande. */
+  /** Vide la liste des candidats : après adoption, ou sur demande. */
   clearCandidates(): void;
 }
 

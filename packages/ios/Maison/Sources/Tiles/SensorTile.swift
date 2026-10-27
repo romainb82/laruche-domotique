@@ -5,7 +5,7 @@ import DomoKit
 ///
 /// Elle se remplit à hauteur de la valeur dans sa plage normale : une humidité
 /// à 80 % ou un pH hors cible se voient avant d'être lus. Une valeur périmée
-/// n'est jamais affichée — elle devient un tiret.
+/// n'est jamais affichée : elle devient un tiret.
 struct SensorTile: View {
     let device: Device
     @Environment(HouseStore.self) private var store
@@ -80,7 +80,7 @@ struct SensorTile: View {
         .frame(minHeight: hauteur)
         .carte()
         .opacity(infos.injoignable ? 0.6 : 1)
-        // Sans regroupement, VoiceOver lisait six arrêts séparés — et l'alerte
+        // Sans regroupement, VoiceOver lisait six arrêts séparés, et l'alerte
         // pH, portée par un triangle rouge sans texte, n'était jamais dite.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(device.label)
@@ -109,7 +109,7 @@ struct SensorTile: View {
     }
 
     private var texte: String {
-        guard let m = mesure, !infos.injoignable else { return "—" }
+        guard let m = mesure, !infos.injoignable else { return "-" }
         if m.metric == .contact { return m.value > 0 ? "Ouvert" : "Fermé" }
         return m.value == m.value.rounded() ? String(Int(m.value)) : String(format: "%g", m.value)
     }

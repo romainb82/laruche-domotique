@@ -4,7 +4,7 @@
  *
  * Même metaphore que la lampe, retournee : le tablier descend depuis le haut,
  * exactement comme le vrai. On glisse vers le bas pour fermer, vers le haut
- * pour ouvrir — le geste est celui du volet lui-meme.
+ * pour ouvrir : le geste est celui du volet lui-meme.
  */
 import { computed } from 'vue';
 import { findCap, type DeviceConfig } from '@domo/shared';

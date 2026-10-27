@@ -2,7 +2,7 @@
 /**
  * Une mesure, en tuile.
  *
- * Elle se remplit aussi — a hauteur de la valeur dans sa plage normale. Une
+ * Elle se remplit aussi : a hauteur de la valeur dans sa plage normale. Une
  * humidite de 80 % ou un pH hors cible se voient donc avant d'etre lus.
  * Une valeur perimee n'est jamais affichee : elle devient un tiret.
  */
@@ -38,7 +38,7 @@ const remplissage = computed(() => {
 
 const texte = computed(() => {
   const s = sensor.value;
-  if (!s || injoignable.value) return { valeur: '—', unite: '' };
+  if (!s || injoignable.value) return { valeur: '-', unite: '' };
   if (s.metric === 'contact') return { valeur: s.value > 0 ? 'Ouvert' : 'Fermé', unite: '' };
   return { valeur: String(s.value), unite: s.unit };
 });

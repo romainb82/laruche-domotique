@@ -1,8 +1,7 @@
 /**
  * Le canal Modbus, mis a l'epreuve contre un VRAI esclave.
  *
- * On monte un faux equipement technique qui parle le protocole pour de bon —
- * en-tete MBAP, codes fonction, exceptions — et on verifie que le meme moteur
+ * On monte un faux equipement technique qui parle le protocole pour de bon : * en-tete MBAP, codes fonction, exceptions, et on verifie que le meme moteur
  * de transformation le comprend sans une ligne de code specifique.
  *
  * Ce qui est verifie ici et nulle part ailleurs :
@@ -14,6 +13,10 @@
  *   · le balayage tient lieu de decouverte, puisque le protocole n'en a pas.
  */
 import { createServer } from 'node:net';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const B = 'http://localhost:3001';
 const PORT = 18850;
@@ -285,7 +288,7 @@ ok(bobine?.adr === 0 && bobine?.valeur === false,
 await pause(3000);
 const [, st2] = await j('/api/state');
 const relu = st2.states.find((s) => s.id === 'test.thermostat.pac')?.caps.find((c) => c.kind === 'climate');
-ok(relu?.setpoint === 21.5, "La consigne revient du matériel après écriture — la boucle est fermée");
+ok(relu?.setpoint === 21.5, "La consigne revient du matériel après écriture : la boucle est fermée");
 
 // --- LECTURE SEULE : refusee avant d'atteindre le reseau ---
 const [, refus] = await post('/api/devices/test.light.interdit/command', { kind: 'switch', state: true });

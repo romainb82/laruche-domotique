@@ -8,7 +8,7 @@ import DomoKit
 ///   · une pièce allumée rayonne en ambre ;
 ///   · chaque ouvrant porte son volet, dessiné à sa position réelle.
 ///
-/// Toute la géométrie vient du serveur — `Zone.plan` et `Device.opening` — donc
+/// Toute la géométrie vient du serveur : `Zone.plan` et `Device.opening`, donc
 /// redécouper une pièce se fait dans le paramétrage, pas ici.
 struct HousePlanView: View {
     @Environment(HouseStore.self) private var store
@@ -16,7 +16,7 @@ struct HousePlanView: View {
 
     /// Le texte dessiné suit la taille système, mais borné : un plan dont les
     /// noms débordent des pièces n'est plus un plan. Au-delà de cette borne,
-    /// c'est la liste des pièces, juste en dessous, qui prend le relais — et
+    /// c'est la liste des pièces, juste en dessous, qui prend le relais, et
     /// VoiceOver lit de toute façon chaque pièce en entier.
     @ScaledMetric(relativeTo: .body) private var facteurTexte: CGFloat = 100
     private var echelleTexte: CGFloat { Swift.min(1.8, facteurTexte / 100) }
@@ -61,7 +61,7 @@ struct HousePlanView: View {
                         // Un essai précédent l'élargissait à 44 pt minimum pour
                         // satisfaire la règle des cibles : les petites pièces
                         // se chevauchaient alors, et le centre de la Buanderie
-                        // se retrouvait couvert par sa voisine — un toucher au
+                        // se retrouvait couvert par sa voisine : un toucher au
                         // milieu d'une pièce ouvrait l'autre. Une cible plus
                         // grande qui désigne la mauvaise pièce ne vaut rien.
                         //
@@ -131,7 +131,7 @@ struct HousePlanView: View {
 
     // MARK: Dessin
 
-    /// La lueur diffuse sous les pièces allumées — posée avant tout le reste.
+    /// La lueur diffuse sous les pièces allumées : posée avant tout le reste.
     private func dessinerHalos(_ ctx: GraphicsContext) {
         var flou = ctx
         flou.addFilter(.blur(radius: 9))

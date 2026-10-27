@@ -28,7 +28,7 @@ public actor Discovery {
             let parametres = NWParameters()
             parametres.includePeerToPeer = false
             // Avec le TXT : le serveur y publie son nom d'hôte réel. Le nom du
-            // service Bonjour (« maison ») n'est PAS un nom d'hôte — les
+            // service Bonjour (« maison ») n'est PAS un nom d'hôte : les
             // confondre mène à chercher un « maison.local » qui n'existe pas.
             let browser = NWBrowser(
                 for: .bonjourWithTXTRecord(type: Self.serviceType, domain: nil),

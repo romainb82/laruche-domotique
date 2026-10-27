@@ -5,8 +5,7 @@ import { JOURS_LONGS, type SceneCondition, type SceneTrigger } from './config.js
  *
  * Tout est isolé ici pour une raison : c'est le seul endroit du projet où une
  * erreur ne se voit pas. Un volet qui s'ouvre à 6 h au lieu de 7 h pendant six
- * mois de l'année ne provoque aucune erreur, aucun journal, aucune alerte —
- * juste quelqu'un qui se réveille trop tôt et qui finit par couper la règle.
+ * mois de l'année ne provoque aucune erreur, aucun journal, aucune alerte : * juste quelqu'un qui se réveille trop tôt et qui finit par couper la règle.
  *
  * D'où le passage par le fuseau CONFIGURÉ plutôt que par l'heure de la
  * machine. Un serveur peut tourner en UTC, dans un conteneur, ou déménager.
@@ -19,7 +18,7 @@ import { JOURS_LONGS, type SceneCondition, type SceneTrigger } from './config.js
  *
  * On lit l'heure murale du fuseau, on la relit comme si c'était de l'UTC, et
  * on mesure l'écart. C'est le seul moyen sans bibliothèque de connaître le
- * décalage réel d'un jour donné — celui d'aujourd'hui ne vaut pas pour
+ * décalage réel d'un jour donné : celui d'aujourd'hui ne vaut pas pour
  * février.
  */
 export function decalageMinutes(instant: Date, fuseau: string): number {
@@ -45,7 +44,7 @@ export function decalageMinutes(instant: Date, fuseau: string): number {
  *
  * Deux passes, et c'est nécessaire : le décalage à appliquer dépend de
  * l'instant qu'on cherche, et l'instant dépend du décalage. La première passe
- * donne une approximation, la seconde la corrige — ce qui compte le dernier
+ * donne une approximation, la seconde la corrige : ce qui compte le dernier
  * dimanche d'octobre, quand une même heure murale existe deux fois.
  */
 export function instantLocal(

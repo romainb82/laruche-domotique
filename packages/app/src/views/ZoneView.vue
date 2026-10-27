@@ -4,7 +4,7 @@
  *
  * Elle n'est plus qu'un cadre : tout le détail vit dans `ZoneDetail`, partagé
  * avec le panneau posé à côté du plan. Sur grand écran on n'arrive plus ici en
- * touchant le plan — le panneau suffit et évite l'aller-retour — mais
+ * touchant le plan : le panneau suffit et évite l'aller-retour, mais
  * l'adresse reste valable, et c'est elle que portent un lien profond, un
  * raccourci Siri ou un widget.
  */

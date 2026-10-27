@@ -130,7 +130,7 @@ function conditionLisible(sc: SceneConfig): string | null {
   const attendu = c.is === 'on' ? 'allumé' : 'éteint';
   if (!d) return `Si « ${nom} » est ${attendu}`;
   const remplie = (findCap(house.stateOf(d.id), 'switch')?.state === true) === (c.is === 'on');
-  return `Si « ${nom} » est ${attendu} — ${remplie ? 'vrai' : 'faux'} en ce moment`;
+  return `Si « ${nom} » est ${attendu} : ${remplie ? 'vrai' : 'faux'} en ce moment`;
 }
 
 // ------------------------------------------------------------------ gestes
@@ -144,7 +144,7 @@ async function lancer(sc: SceneConfig) {
     lance.value[sc.id] = 'fait';
     annoncer(
       r.ok
-        ? `${sc.label} lancée — ${r.total} équipements.`
+        ? `${sc.label} lancée : ${r.total} équipements.`
         : (r.refus ?? `${r.echecs} équipement(s) n'ont pas répondu.`),
     );
     setTimeout(() => { delete lance.value[sc.id]; }, 2500);
@@ -290,7 +290,7 @@ const quand = (iso: string) =>
               class="rounded-full border border-line bg-ground px-2.5 py-1 text-[11px] text-soft"
             >{{ sequence(sc) }} différée{{ sequence(sc) > 1 ? 's' : '' }}</li>
           </ul>
-          <p v-else class="text-xs text-faint">Aucune action — ce scénario ne ferait rien.</p>
+          <p v-else class="text-xs text-faint">Aucune action : ce scénario ne ferait rien.</p>
 
           <p v-if="conditionLisible(sc)" class="text-[11px] text-soft">{{ conditionLisible(sc) }}</p>
 
@@ -326,9 +326,9 @@ const quand = (iso: string) =>
           <span class="font-mono text-faint">{{ quand(r.at) }}</span>
           <strong>{{ r.label }}</strong>
           <span class="text-soft">{{ r.origin === 'schedule' ? 'automatique' : 'à la demande' }}</span>
-          <span v-if="r.refus" class="text-warn-deep">— {{ r.refus }}</span>
-          <span v-else-if="r.echecs" class="text-crit">— {{ r.echecs }} échec(s) sur {{ r.total }}</span>
-          <span v-else class="text-soft">— {{ r.total }} action(s)</span>
+          <span v-if="r.refus" class="text-warn-deep">,  {{ r.refus }}</span>
+          <span v-else-if="r.echecs" class="text-crit">,  {{ r.echecs }} échec(s) sur {{ r.total }}</span>
+          <span v-else class="text-soft">,  {{ r.total }} action(s)</span>
         </li>
       </ul>
     </details>

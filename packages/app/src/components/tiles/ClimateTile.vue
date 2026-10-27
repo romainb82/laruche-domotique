@@ -104,7 +104,7 @@ function pousser(delta: number) {
       <div class="flex shrink-0 items-center gap-2">
         <button class="pas" :disabled="injoignable" aria-label="Baisser la consigne" @click="pousser(-0.5)">−</button>
         <span class="w-[62px] text-center font-mono text-2xl font-semibold tabular-nums leading-none text-ink">
-          {{ injoignable ? '—' : afficheConsigne.toFixed(1) }}<span class="text-sm">°</span>
+          {{ injoignable ? '-' : afficheConsigne.toFixed(1) }}<span class="text-sm">°</span>
         </span>
         <button class="pas" :disabled="injoignable" aria-label="Monter la consigne" @click="pousser(0.5)">+</button>
       </div>

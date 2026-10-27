@@ -3,7 +3,7 @@
  *
  * On monte une fausse camera qui se comporte comme les vraies : elle exige une
  * authentification « basic », elle sert du JPEG, et elle sait aussi renvoyer sa
- * page web quand on se trompe d'adresse — l'erreur la plus frequente, et celle
+ * page web quand on se trompe d'adresse : l'erreur la plus frequente, et celle
  * qui produit d'habitude un carre gris sans explication.
  *
  * Ce qui est verifie ici et nulle part ailleurs :
@@ -14,6 +14,10 @@
  *   · allumer une camera est un avertissement, pas une erreur.
  */
 import { createServer } from 'node:http';
+
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
 
 const B = 'http://localhost:3001';
 const PORT = 18860;

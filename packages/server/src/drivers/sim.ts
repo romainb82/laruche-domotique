@@ -6,7 +6,7 @@ type StateHandler = (deviceId: string, caps: Capability[]) => void;
 /**
  * La maison virtuelle.
  *
- * Elle ne cherche pas à être juste physiquement — elle cherche à être
+ * Elle ne cherche pas à être juste physiquement : elle cherche à être
  * suffisamment désagréable pour que l'interface soit obligée d'être honnête :
  * un volet met vingt secondes à descendre, une pièce met des heures à chauffer,
  * et le pH d'un bassin monte tout seul.
@@ -141,7 +141,7 @@ export class SimEngine {
   /**
    * Un module réel republie son état régulièrement, même quand rien ne change.
    * Sans ce battement, une lampe qu'on n'a pas touchée depuis cinq minutes
-   * serait déclarée « ne répond plus » — et l'application crierait au loup.
+   * serait déclarée « ne répond plus », et l'application crierait au loup.
    */
   private heartbeat(): void {
     for (const [id, caps] of this.state) {

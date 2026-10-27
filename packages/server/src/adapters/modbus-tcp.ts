@@ -5,14 +5,14 @@ import { Socket } from 'node:net';
  *
  * Pourquoi pas une bibliothèque : les paquets courants tirent avec eux un
  * pilote série natif, qui se compile mal sur un Raspberry Pi et ne sert à rien
- * tant qu'on parle TCP. Le protocole, lui, tient en une page — un en-tête de
+ * tant qu'on parle TCP. Le protocole, lui, tient en une page : un en-tête de
  * sept octets suivi d'une poignée de codes fonction. Le faire ici donne en
  * prime des messages d'erreur en français, ce qu'aucune de ces bibliothèques
  * ne rend.
  *
  * Les requêtes sont sérialisées. Le protocole autorise à en empiler plusieurs,
  * mais une bonne partie du matériel industriel ferme la connexion quand on
- * essaie — et une pompe à chaleur qui raccroche vaut moins qu'une milliseconde
+ * essaie, et une pompe à chaleur qui raccroche vaut moins qu'une milliseconde
  * gagnée.
  */
 
@@ -256,7 +256,7 @@ export class ModbusTcpClient {
  *
  * Le `-swap` inverse l'ordre des deux mots. La moitié du matériel place le mot
  * de poids fort en premier, l'autre en second, et la documentation l'omet une
- * fois sur deux — d'où le réglage plutôt qu'une devinette.
+ * fois sur deux, d'où le réglage plutôt qu'une devinette.
  */
 export function decoder(mots: number[], type: string): number | undefined {
   if (type === 'uint16') return mots[0];
@@ -309,10 +309,10 @@ export function encoder(valeur: number, type: string): number[] {
 function exception(code: number): string {
   switch (code) {
     case 1: return "L'équipement ne connaît pas cette fonction Modbus.";
-    case 2: return "Ce registre n'existe pas chez cet équipement — vérifie l'adresse, elle commence à 0.";
+    case 2: return "Ce registre n'existe pas chez cet équipement : vérifie l'adresse, elle commence à 0.";
     case 3: return 'Valeur refusée par l’équipement : hors des bornes qu’il accepte.';
     case 4: return "L'équipement signale une panne interne.";
-    case 5: return 'Requête acceptée, réponse longue à venir — réessaie.';
+    case 5: return 'Requête acceptée, réponse longue à venir : réessaie.';
     case 6: return "L'équipement est occupé.";
     case 10: case 11: return "La passerelle ne trouve pas l'esclave : vérifie l'identifiant.";
     default: return `L'équipement a refusé la requête (code ${code}).`;

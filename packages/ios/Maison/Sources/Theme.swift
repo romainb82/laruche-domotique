@@ -2,7 +2,7 @@ import SwiftUI
 
 /// L'identité visuelle, reprise du web.
 ///
-/// Neutres chauds — une maison n'est pas une application de bureau — l'ambre
+/// Neutres chauds : une maison n'est pas une application de bureau : l'ambre
 /// pour la lumière allumée, un bleu froid pour le jour qui entre par les
 /// volets. Thème clair assumé, pas subi.
 enum Theme {
@@ -12,7 +12,7 @@ enum Theme {
     static let line    = Color(red: 0.886, green: 0.859, blue: 0.824)
     static let ink     = Color(red: 0.110, green: 0.094, blue: 0.082)
     static let soft    = Color(red: 0.455, green: 0.424, blue: 0.392)
-    /// Relevé à 2,51:1 sur le fond papier — très en dessous des 4,5:1 exigés.
+    /// Relevé à 2,51:1 sur le fond papier : très en dessous des 4,5:1 exigés.
     /// Cette teinte porte toutes les étiquettes en capitales de l'interface.
     static let faint   = Color(red: 0.447, green: 0.424, blue: 0.400)
 
@@ -37,7 +37,7 @@ enum Theme {
 /// Une police à taille choisie, qui suit malgré tout les réglages d'accessibilité.
 ///
 /// `.font(.system(size:))` est FIGÉ : il ignore totalement le curseur de taille
-/// de texte d'iOS. Or ce réglage est, de loin, le plus utilisé — bien avant
+/// de texte d'iOS. Or ce réglage est, de loin, le plus utilisé : bien avant
 /// VoiceOver. Les styles sémantiques (`.body`, `.caption`) scalent mais
 /// imposent leurs tailles, ce qui casserait des proportions réglées au point.
 ///

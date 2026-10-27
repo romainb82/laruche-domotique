@@ -92,7 +92,7 @@ export interface DeviceState {
   pending: boolean;
 }
 
-/** Origine d'une action — indispensable pour déboguer une maison. */
+/** Origine d'une action : indispensable pour déboguer une maison. */
 export type ActionOrigin = 'ui' | 'schedule' | 'rule' | 'wall_switch' | 'system';
 
 export interface ActionLogEntry {

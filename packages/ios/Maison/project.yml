@@ -5,6 +5,20 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
 
+# L'equipe de signature vit ICI et pas dans l'editeur « Signing &
+# Capabilities » d'Xcode : ce fichier est la source du projet, le .xcodeproj est
+# genere, et tout reglage fait dans l'interface disparait a la generation
+# suivante.
+#
+# 55596QG4X8 est l'unite d'organisation du certificat. Ce n'est PAS
+# l'identifiant entre parentheses de son nom (JF46FJP5QW), qui designe le
+# certificat lui-meme : le confondre donne une erreur de provisionnement
+# beaucoup plus obscure que celle qu'on corrige ici.
+settings:
+  base:
+    DEVELOPMENT_TEAM: "55596QG4X8"
+    CODE_SIGN_STYLE: Automatic
+
 packages:
   DomoKit:
     path: ../DomoKit

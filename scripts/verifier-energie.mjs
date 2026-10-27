@@ -14,6 +14,10 @@ import {
   bornesPeriode, integrer, repartir, pic, TROU_MAX_MS,
 } from '../packages/shared/dist/index.js';
 
+import { ouvrirSession } from './session.mjs';
+// Le serveur exige un compte depuis le chantier d'authentification.
+await ouvrirSession();
+
 const B = 'http://localhost:3001';
 const TZ = 'Europe/Paris';
 const H = 3_600_000;
@@ -25,7 +29,7 @@ const proche = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol;
 // ======================================================= l'integration
 
 // Les mesures arrivent a la minute : plus espacees que TROU_MAX_MS, elles
-// seraient ecartees — a juste titre, mais ce n'est pas ce qu'on teste ici.
+// seraient ecartees : a juste titre, mais ce n'est pas ce qu'on teste ici.
 const t0 = Date.parse('2026-09-10T00:00:00Z');
 const echantillons = (n, f) =>
   Array.from({ length: n + 1 }, (_, i) => ({ at: t0 + i * 60_000, value: f(i / n) }));

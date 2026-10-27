@@ -20,7 +20,7 @@ export function migrateConfig(raw: unknown): HouseConfig {
     const brutes = Array.isArray(cfg.scenes) ? cfg.scenes : [];
     // Les déclencheurs sont arrivés après les scènes : une scène d'avant n'a
     // ni interrupteur, ni « quand », ni « si ». Elle reste donc manuelle et
-    // active, exactement ce qu'elle était — une migration ne doit rien mettre
+    // active, exactement ce qu'elle était : une migration ne doit rien mettre
     // en marche que personne n'a demandé.
     const scenes = brutes.map((sc) => ({
       ...sc,
@@ -106,7 +106,7 @@ export function migrateConfig(raw: unknown): HouseConfig {
   const { driver: _d, mqtt: _m, ...reste } = cfg;
   // Ce chemin convertit les bases d'avant le bus d'adaptateurs. Il doit poser
   // TOUTES les sections apparues depuis, sinon il rend une configuration que
-  // la validation refuserait — et la maison ne démarrerait pas.
+  // la validation refuserait, et la maison ne démarrerait pas.
   return {
     ...reste,
     connections,

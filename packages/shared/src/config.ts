@@ -36,7 +36,7 @@ export interface HouseConfig {
 /**
  * Une scène : un geste, plusieurs équipements.
  *
- * C'est ce qui fait la différence entre piloter une maison et l'habiter — on
+ * C'est ce qui fait la différence entre piloter une maison et l'habiter : on
  * ne dit pas « éteins ces onze lampes et ferme ces treize volets », on dit
  * « bonne nuit ».
  */
@@ -63,8 +63,8 @@ export interface SceneConfig {
  *
  * Volontairement court. Le géorepérage et la présence demandent des sources
  * qu'on n'a pas : inventer un déclencheur qui ne peut pas se produire rendrait
- * l'interface menteuse. La voix, elle, existe déjà — par Siri, via le pont
- * HomeKit — et ne passe pas par ici.
+ * l'interface menteuse. La voix, elle, existe déjà : par Siri, via le pont
+ * HomeKit, et ne passe pas par ici.
  */
 export type SceneTrigger =
   | { kind: 'manual' }
@@ -116,7 +116,7 @@ export interface HeatingSettings {
   /**
    * 'single'  : une seule régulation pour toute la maison (cas actuel).
    * 'zoned'   : un émetteur pilotable par zone.
-   * Le modèle est identique dans les deux cas — seul le nombre d'actionneurs change.
+   * Le modèle est identique dans les deux cas : seul le nombre d'actionneurs change.
    */
   mode: 'single' | 'zoned';
   /** Détermine l'inertie, donc la stratégie d'anticipation et de réduit. */
@@ -133,13 +133,13 @@ export interface HeatingSettings {
  * Le pont HomeKit.
  *
  * Il expose la maison à l'app Maison d'Apple, donc à Siri, aux automatisations
- * d'Apple et aux autres membres du foyer — sans rien changer au modèle : le
+ * d'Apple et aux autres membres du foyer, sans rien changer au modèle : le
  * pont lit l'état du cerveau et lui transmet les commandes, exactement comme
  * l'interface web. Les deux règles tiennent : un interrupteur poussé depuis
  * Siri ne change l'affichage que lorsque le matériel a confirmé.
  *
  * Éteint par défaut. L'allumer publie un service sur le réseau local et affiche
- * un code d'association — ce n'est pas une décision à prendre à la place de
+ * un code d'association : ce n'est pas une décision à prendre à la place de
  * quelqu'un.
  */
 export interface HomeKitSettings {
@@ -211,8 +211,7 @@ export interface CameraConfig {
 /**
  * Le suivi de consommation.
  *
- * Un seul compteur, celui de la maison entière. La répartition par usage —
- * chauffage, eau chaude, cuisine — demande une mesure par circuit ou par
+ * Un seul compteur, celui de la maison entière. La répartition par usage : * chauffage, eau chaude, cuisine : demande une mesure par circuit ou par
  * prise, que le compteur général ne peut pas fournir : la déduire d'un total
  * reviendrait à l'inventer.
  *
@@ -244,7 +243,7 @@ export const ENERGY_DEFAUT: EnergySettings = {
 export interface PoolSettings {
   enabled: boolean;
   treatment: 'chlore' | 'sel' | 'brome' | 'unknown';
-  /** Plage acceptable. Hors de cette plage, l'app alerte — elle n'injecte jamais. */
+  /** Plage acceptable. Hors de cette plage, l'app alerte : elle n'injecte jamais. */
   phTarget: [number, number];
   orpTarget: [number, number];
 }
@@ -302,7 +301,7 @@ export interface ZoneConfig {
   heated: boolean;
 }
 
-/** Réglages du comportement simulé — ignorés dès qu'un binding existe. */
+/** Réglages du comportement simulé : ignorés dès qu'un binding existe. */
 export interface SimProfile {
   /** Volet : durée de course complète, en secondes. */
   travelSeconds?: number;
@@ -462,7 +461,7 @@ export function validateConfig(cfg: HouseConfig): ConfigIssue[] {
   if (cfg.homekit?.enabled && cfg.homekit.pin === HOMEKIT_DEFAUT.pin)
     issues.push({
       path: 'homekit.pin',
-      message: 'Le code d’association est encore celui d’usine — change-le avant d’ouvrir le pont.',
+      message: 'Le code d’association est encore celui d’usine : change-le avant d’ouvrir le pont.',
     });
 
   const camIds = new Set<string>();
@@ -478,7 +477,7 @@ export function validateConfig(cfg: HouseConfig): ConfigIssue[] {
     if (c.enabled && !/^https?:\/\//i.test(c.snapshotUrl ?? ''))
       issues.push({
         path: `${ou}.snapshotUrl`,
-        message: `« ${c.label} » : adresse d’image manquante ou invalide — attendu http:// ou https://`,
+        message: `« ${c.label} » : adresse d’image manquante ou invalide : attendu http:// ou https://`,
       });
     if (c.refreshSeconds < 1 || c.refreshSeconds > 3600)
       issues.push({ path: `${ou}.refreshSeconds`, message: `« ${c.label} » : rafraîchissement hors de 1 à 3600 s.` });
@@ -487,7 +486,7 @@ export function validateConfig(cfg: HouseConfig): ConfigIssue[] {
   if (allumees)
     issues.push({
       path: 'cameras',
-      message: `${allumees} caméra(s) active(s) — le serveur n’a aucune authentification, toute machine du réseau local peut voir ces images.`,
+      message: `${allumees} caméra(s) active(s) : le serveur n’a aucune authentification, toute machine du réseau local peut voir ces images.`,
     });
 
   if (cfg.energy?.meterDeviceId && !deviceIds.has(cfg.energy.meterDeviceId))
@@ -506,13 +505,13 @@ export function validateConfig(cfg: HouseConfig): ConfigIssue[] {
 
 /**
  * Les avertissements n'empêchent pas d'enregistrer ; les erreurs si.
- * Avoir des équipements simulés est un état parfaitement normal — c'est même
+ * Avoir des équipements simulés est un état parfaitement normal : c'est même
  * tout l'intérêt : on équipe la maison pièce par pièce.
  */
 export function isBlocking(issue: ConfigIssue): boolean {
   if (issue.message.includes('resteront simulés')) return false;
   // Le code d'usine est imprudent, pas cassé : on le dit fort, sans empêcher
-  // d'enregistrer. Une forme invalide, elle, empêche iOS d'associer — donc bloque.
+  // d'enregistrer. Une forme invalide, elle, empêche iOS d'associer, donc bloque.
   if (issue.message.includes('encore celui d’usine')) return false;
   // Les caméras actives sont un AVERTISSEMENT, pas une erreur : c'est un
   // risque qu'on a le droit d'accepter chez soi, à condition de le savoir.

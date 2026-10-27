@@ -4,7 +4,7 @@
  *
  * Le geste central n'est pas de cocher des cases : c'est de **régler la maison
  * comme on la veut, puis de la capturer**. On ne décrit pas « éteins ces onze
- * lampes et ferme ces treize volets » — on met la maison dans l'état voulu et
+ * lampes et ferme ces treize volets » : on met la maison dans l'état voulu et
  * on lui donne un nom.
  *
  * Une scène ne touche QUE les équipements qu'elle liste. Tout ce qui n'y figure
@@ -35,7 +35,7 @@ const ICONES = ['soleil', 'lune', 'porte', 'ampoule', 'volet', 'thermo', 'piscin
  *
  * On ne se contente pas de changer le genre : on pose une heure et des jours
  * plausibles. Un déclencheur horaire sans jour coché ne partirait jamais, et
- * la validation le refuserait — autant ne jamais créer cet état.
+ * la validation le refuserait : autant ne jamais créer cet état.
  */
 function changerQuand(genre: 'manual' | 'time') {
   s.value.trigger = genre === 'manual'
@@ -135,7 +135,7 @@ function retirerZone(zoneId: string) {
 
 /**
  * L'état actuel d'un équipement, traduit en commande de scène.
- * Rend `null` pour ce qui ne se commande pas — un capteur n'a rien à jouer.
+ * Rend `null` pour ce qui ne se commande pas : un capteur n'a rien à jouer.
  */
 function capturer(device: DeviceConfig): SceneAction['command'] | null {
   const etat = house.stateOf(device.id);
@@ -204,7 +204,7 @@ const enEssai = ref(false);
 
 /**
  * Joue la scène pour de vrai. C'est le seul moyen honnête de savoir ce
- * qu'elle fait — et le serveur dit combien d'équipements n'ont pas répondu.
+ * qu'elle fait, et le serveur dit combien d'équipements n'ont pas répondu.
  */
 async function essayer() {
   enEssai.value = true;
@@ -213,7 +213,7 @@ async function essayer() {
     const res = await fetch(`/api/scenes/${encodeURIComponent(s.value.id)}/apply`, { method: 'POST' });
     const body = await res.json();
     message.value = body.ok
-      ? `Jouée — ${body.total} équipements.`
+      ? `Jouée : ${body.total} équipements.`
       : `${body.echecs} équipement(s) n'ont pas répondu.`;
   } catch {
     message.value = 'Serveur injoignable.';
@@ -301,7 +301,7 @@ async function essayer() {
           Aucun jour coché : cette scène ne partirait jamais.
         </p>
         <p v-else class="hint">
-          {{ resumeQuand }}{{ s.enabled ? '' : ' — mais la scène est au repos.' }}
+          {{ resumeQuand }}{{ s.enabled ? '' : ', mais la scène est au repos.' }}
         </p>
       </template>
       <p v-else class="hint">
@@ -444,7 +444,7 @@ async function essayer() {
     <p class="hint">
       « Reprendre l'état actuel » relit la maison telle qu'elle est et met à jour
       les valeurs des équipements déjà listés. « Essayer » joue la scène pour de
-      vrai — le seul moyen honnête de savoir ce qu'elle fait.
+      vrai : le seul moyen honnête de savoir ce qu'elle fait.
     </p>
   </div>
 </template>

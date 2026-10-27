@@ -121,6 +121,6 @@ function lisible(e: Error, camera: CameraConfig): string {
   if (m.includes('certificate') || m.includes('SSL')) return `${quoi} : certificat refusé.`;
   // Node refuse d'emblée une poignée de ports réservés (1, 7, 9, 19…), avec un
   // « bad port » qui n'apprend rien à qui a mal recopié une adresse.
-  if (m.includes('bad port')) return `${quoi} : ce numéro de port est interdit — vérifie l'adresse.`;
+  if (m.includes('bad port')) return `${quoi} : ce numéro de port est interdit : vérifie l'adresse.`;
   return `${quoi} : ${m}`;
 }

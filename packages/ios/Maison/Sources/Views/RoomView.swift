@@ -54,7 +54,7 @@ struct RoomView: View {
             }
 
             // Même règle pour les commandes d'ensemble : côte à côte tant
-            // qu'elles tiennent, sinon empilées — jamais coupées en plein mot.
+            // qu'elles tiennent, sinon empilées : jamais coupées en plein mot.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 8) { commandesPiece }
                 VStack(alignment: .leading, spacing: 8) { commandesPiece }

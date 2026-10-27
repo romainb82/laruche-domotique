@@ -20,7 +20,7 @@ import type { Db } from './db.js';
  *  1. L'état vient TOUJOURS du driver, jamais de la commande. On n'écrit pas
  *     « la lampe est allumée » parce qu'on a demandé de l'allumer.
  *  2. Entre l'envoi d'une commande et sa confirmation, l'équipement est
- *     `pending` — l'interface affiche « en cours », un troisième état.
+ *     `pending` : l'interface affiche « en cours », un troisième état.
  *     Si la confirmation n'arrive pas, on affiche l'échec au lieu de le masquer.
  */
 export class StateHub extends EventEmitter {
@@ -40,7 +40,7 @@ export class StateHub extends EventEmitter {
     this.setMaxListeners(0);
   }
 
-  /** Les canaux actifs, avec leur santé — c'est ce que l'interface affiche. */
+  /** Les canaux actifs, avec leur santé : c'est ce que l'interface affiche. */
   connections(): ConnectionStatus[] {
     return this.registry?.statuses() ?? [];
   }
@@ -179,7 +179,7 @@ export class StateHub extends EventEmitter {
 
   /**
    * Délai de garde. Sans lui, une commande perdue laisse l'interface
-   * éternellement « en cours » — le pire des trois états.
+   * éternellement « en cours » : le pire des trois états.
    */
   private armTimeout(id: string, command: Command, origin: ActionOrigin): void {
     this.confirm(id);
@@ -219,13 +219,13 @@ export class StateHub extends EventEmitter {
     }
   }
 
-  /** Historisation des mesures — échantillonnée, pas à chaque tick. */
+  /** Historisation des mesures : échantillonnée, pas à chaque tick. */
   /**
    * Historise les mesures, au plus une par seconde ET PAR ÉQUIPEMENT.
    *
    * La limite était globale : le capteur le plus bavard raflait le quota et
    * les autres n'étaient presque jamais enregistrés. Mesuré sur un mois de
-   * fonctionnement — 9 761 points pour la puissance, 358 pour toutes les
+   * fonctionnement : 9 761 points pour la puissance, 358 pour toutes les
    * températures réunies. Un historique aussi troué rend l'intégration de
    * l'énergie fausse et les courbes de température illisibles.
    */

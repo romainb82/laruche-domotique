@@ -5,7 +5,7 @@ import XCTest
 ///
 /// Ils ne vérifient pas du Swift : ils vérifient que le Swift et le TypeScript
 /// racontent la même histoire. Chaque test interroge le VRAI serveur et décode
-/// sa vraie réponse — donc toute dérive du contrat casse ici, au moment de
+/// sa vraie réponse, donc toute dérive du contrat casse ici, au moment de
 /// compiler, plutôt que sur le téléphone six mois plus tard.
 ///
 /// Ils sont ignorés si le cerveau ne tourne pas : on ne veut pas d'une suite
@@ -22,7 +22,7 @@ final class ContractTests: XCTestCase {
         r.timeoutInterval = 2
         guard let (_, reponse) = try? await URLSession.shared.data(for: r),
               (reponse as? HTTPURLResponse)?.statusCode == 200 else {
-            throw XCTSkip("Le cerveau ne tourne pas — lance `npm run dev` d'abord.")
+            throw XCTSkip("Le cerveau ne tourne pas : lance `npm run dev` d'abord.")
         }
     }
 
@@ -54,7 +54,7 @@ final class ContractTests: XCTestCase {
         XCTAssertFalse(snap.states.isEmpty)
 
         // Si le serveur ajoute une famille de capacité, le décodage lève et ce
-        // test tombe — c'est exactement le but.
+        // test tombe : c'est exactement le but.
         var vues = Set<String>()
         for etat in snap.states {
             for cap in etat.caps {
@@ -129,7 +129,7 @@ final class ContractTests: XCTestCase {
         print("  · volet à \(position) %, en mouvement : \(String(describing: etat.coverMoving))")
     }
 
-    /// Attend qu'un volet cesse de bouger — au plus 40 s, soit largement plus
+    /// Attend qu'un volet cesse de bouger : au plus 40 s, soit largement plus
     /// qu'une course complète.
     private func attendreImmobile(_ deviceId: String) async throws {
         for _ in 0..<80 {

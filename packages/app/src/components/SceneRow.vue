@@ -7,7 +7,7 @@
  * volets », on dit « bonne nuit ».
  *
  * Le retour est explicite : le bouton confirme, et signale les echecs plutot
- * que de les taire — une scene a moitie appliquee est pire qu'une scene ratee.
+ * que de les taire : une scene a moitie appliquee est pire qu'une scene ratee.
  */
 import { ref } from 'vue';
 import { useHouse } from '@/stores/house';
@@ -26,11 +26,11 @@ async function jouer(id: string, label: string) {
     const res = await fetch(`/api/scenes/${encodeURIComponent(id)}/apply`, { method: 'POST' });
     const body = await res.json();
     retour.value = body.echecs
-      ? { id, texte: `${label} — ${body.echecs} équipement(s) n'ont pas répondu`, ok: false }
+      ? { id, texte: `${label} : ${body.echecs} équipement(s) n'ont pas répondu`, ok: false }
       : { id, texte: `${label} · ${body.total} équipements`, ok: true };
     annoncer(retour.value.texte);
   } catch {
-    retour.value = { id, texte: `${label} — serveur injoignable`, ok: false };
+    retour.value = { id, texte: `${label} : serveur injoignable`, ok: false };
     annoncer(retour.value.texte);
   } finally {
     enCours.value = null;

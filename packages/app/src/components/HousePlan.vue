@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Le plan de la maison — l'écran principal.
+ * Le plan de la maison : l'écran principal.
  *
  * Il montre deux choses d'un seul coup d'œil, sans un mot à lire :
  *   · une pièce allumée rayonne en ambre ;
@@ -259,7 +259,7 @@ const isSelected = (id: string) => props.selected === id;
  *
  * Deux choses l'empêchent de fonctionner tout seul. D'abord `ring-*` de
  * Tailwind est un box-shadow, qui ne se peint pas de façon fiable sur un <g>
- * SVG — et la règle globale pose `outline-none` par-dessus. Ensuite Chromium
+ * SVG, et la règle globale pose `outline-none` par-dessus. Ensuite Chromium
  * dessine son propre anneau bleu sur un <g> porteur de tabindex, y compris à
  * la souris : il jure avec la palette et se confond avec le bleu des volets.
  *

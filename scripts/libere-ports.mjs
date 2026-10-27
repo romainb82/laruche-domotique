@@ -3,7 +3,7 @@
  *
  * Un serveur laissé en fond après un plantage bloque le démarrage suivant avec
  * un EADDRINUSE cryptique. Plutôt que de chercher le PID à la main, on le fait
- * ici — et `npm run dev` le fait tout seul avant de démarrer.
+ * ici, et `npm run dev` le fait tout seul avant de démarrer.
  */
 import { execSync } from 'node:child_process';
 

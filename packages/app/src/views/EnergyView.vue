@@ -7,7 +7,7 @@
  *
  *   · le total vient de l'intégration des relevés de puissance, pas d'une
  *     estimation ;
- *   · le coût n'apparaît que si un tarif a été saisi — un montant en euros
+ *   · le coût n'apparaît que si un tarif a été saisi : un montant en euros
  *     calculé sur un prix inventé serait pire qu'une case vide ;
  *   · la répartition par usage n'existe pas, et l'écran le dit. Un compteur
  *     général ne sait pas quelle part revient au chauffage : il faudrait une
@@ -145,7 +145,7 @@ const prefixePic = computed(() => (periode.value === 'jour' ? 'à ' : periode.va
           <p v-if="ecart !== null" class="chiffre" :class="ecart <= 0 ? 'text-ok' : 'text-glow-deep'">
             {{ ecart > 0 ? '+' : '' }}{{ ecart }}<span class="sur">%</span>
           </p>
-          <p v-else class="chiffre text-faint">—</p>
+          <p v-else class="chiffre text-faint">-</p>
           <p class="hint">{{ bilan.comparaison }}</p>
         </div>
 
@@ -155,7 +155,7 @@ const prefixePic = computed(() => (periode.value === 'jour' ? 'à ' : periode.va
             {{ bilan.cout.toFixed(2) }}<span class="sur">€</span>
           </p>
           <template v-else>
-            <p class="chiffre text-faint">—</p>
+            <p class="chiffre text-faint">-</p>
             <p class="hint">
               Tarif non renseigné.
               <RouterLink to="/parametrage" class="font-medium text-glow-deep underline">
@@ -170,7 +170,7 @@ const prefixePic = computed(() => (periode.value === 'jour' ? 'à ' : periode.va
           <p v-if="bilan.pic" class="chiffre">
             {{ bilan.pic.kwh.toFixed(2) }}<span class="sur">kWh</span>
           </p>
-          <p v-else class="chiffre text-faint">—</p>
+          <p v-else class="chiffre text-faint">-</p>
           <p v-if="bilan.pic" class="hint">{{ prefixePic }}{{ bilan.pic.label }}</p>
         </div>
       </section>
@@ -200,7 +200,7 @@ const prefixePic = computed(() => (periode.value === 'jour' ? 'à ' : periode.va
         </div>
 
         <table class="sr-only">
-          <caption>Consommation {{ unite }} — {{ bilan.titre }}</caption>
+          <caption>Consommation {{ unite }} : {{ bilan.titre }}</caption>
           <thead><tr><th scope="col">Période</th><th scope="col">kWh</th></tr></thead>
           <tbody>
             <tr v-for="(s, i) in bilan.seaux.filter((x) => !x.futur)" :key="i">

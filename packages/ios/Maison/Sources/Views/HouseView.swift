@@ -3,7 +3,7 @@ import DomoKit
 
 /// L'accueil.
 ///
-/// Les scènes d'abord — c'est le geste le plus fréquent — puis le résumé par
+/// Les scènes d'abord : c'est le geste le plus fréquent, puis le résumé par
 /// catégorie, puis les pièces.
 struct HouseView: View {
     @Environment(HouseStore.self) private var store
@@ -126,7 +126,7 @@ struct HouseView: View {
     private var bandeauHorsLigne: some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-            Text(store.erreur ?? "Maison injoignable — les états affichés ne sont plus à jour.")
+            Text(store.erreur ?? "Maison injoignable : les états affichés ne sont plus à jour.")
                 .police(14)
         }
         .foregroundStyle(Theme.crit)

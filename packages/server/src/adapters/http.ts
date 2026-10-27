@@ -12,7 +12,7 @@ import { valeurDe } from './mqtt.js';
  * Beaucoup de matériel n'a pas de MQTT mais expose une API : régulateurs de
  * piscine, passerelles constructeur, onduleurs. On les interroge à intervalle
  * régulier et on traduit leur réponse avec exactement la même chaîne de
- * transformations que MQTT — le moteur ignore d'où vient la valeur.
+ * transformations que MQTT : le moteur ignore d'où vient la valeur.
  *
  * Les lectures qui partagent un même point d'entrée sont regroupées : une seule
  * requête sert tous les capteurs d'une même passerelle.
@@ -35,7 +35,7 @@ export class HttpAdapter extends BaseAdapter {
     this.marquer('connecting');
 
     // On sonde l'adresse AVANT de se déclarer prêt. Sans ça, un canal sans
-    // équipement rattaché — le cas d'un essai à blanc — ne ferait aucune
+    // équipement rattaché : le cas d'un essai à blanc : ne ferait aucune
     // requête et répondrait « ça marche » sur une adresse morte. Un essai qui
     // réussit toujours est pire qu'inutile.
     await this.sonder();
@@ -52,7 +52,7 @@ export class HttpAdapter extends BaseAdapter {
    * Vérifie que quelqu'un répond à l'adresse de base.
    *
    * Un 404 est acceptable : beaucoup d'API ne servent rien à leur racine. Ce
-   * qu'on cherche, c'est une réponse — n'importe laquelle. Seule une panne de
+   * qu'on cherche, c'est une réponse : n'importe laquelle. Seule une panne de
    * transport (connexion refusée, nom inconnu, silence) est un échec.
    */
   private async sonder(): Promise<void> {
@@ -170,6 +170,6 @@ function humaniser(e: Error, source: string): string {
   if (m.includes('ENOTFOUND') || m.includes('EAI_AGAIN')) return `Adresse introuvable : ${source}.`;
   if (m.includes('EHOSTUNREACH') || m.includes('ENETUNREACH')) return `Réseau injoignable depuis le serveur.`;
   // Node refuse une poignée de ports réservés (7, 9, 19…) avant même d'essayer.
-  if (m.includes('bad port')) return `Port interdit dans ${source} — choisis un autre numéro.`;
+  if (m.includes('bad port')) return `Port interdit dans ${source} : choisis un autre numéro.`;
   return m || `${source} injoignable.`;
 }

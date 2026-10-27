@@ -4,7 +4,7 @@
  *
  * La tuile EST le contrôle : on la touche pour allumer, on glisse dessus pour
  * régler l'intensité. Et elle se remplit de lumière à hauteur de ce qu'elle
- * éclaire — la surface allumée est l'information, avant même le pourcentage.
+ * éclaire : la surface allumée est l'information, avant même le pourcentage.
  *
  * Trois états visuels, toujours : allumé · en cours · injoignable.
  */
