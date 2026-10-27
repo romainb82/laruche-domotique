@@ -11,7 +11,7 @@
  *    il dit la même chose, en montrant en plus où se trouvent les pièces les
  *    unes par rapport aux autres. Garder les deux, c'était deux inventaires
  *    du même bien. En dessous de 1280 px le panneau latéral n'a pas la place,
- *    donc la grille revient — c'est le seul moment où elle sert encore.
+ *    donc la grille revient : c'est le seul moment où elle sert encore.
  * 2. **« Tout éteindre » monte en tête.** C'est le geste le plus fréquent
  *    après les scénarios, et il était noyé dans une tuile de comptage.
  */
@@ -25,6 +25,13 @@ import RoomCard from '@/components/RoomCard.vue';
 import ZoneDetail from '@/components/ZoneDetail.vue';
 import SceneRow from '@/components/SceneRow.vue';
 import Icon from '@/components/Icon.vue';
+import CategorieRail from '@/components/CategorieRail.vue';
+import CategorieDetail from '@/components/CategorieDetail.vue';
+import TuilesEpinglees from '@/components/TuilesEpinglees.vue';
+import JournalActivite from '@/components/JournalActivite.vue';
+import CarteAilleurs from '@/components/CarteAilleurs.vue';
+import VignettesCameras from '@/components/VignettesCameras.vue';
+import type { CategorieId } from '@/composables/categories';
 
 const house = useHouse();
 const router = useRouter();
@@ -78,13 +85,13 @@ const alertes = computed(() => {
     const st = house.stateOf(ph.id);
     const cap = findCap(st, 'sensor');
     if (cap && st?.health === 'online' && (cap.value < cible[0] || cap.value > cible[1]))
-      out.push(`pH du bassin à ${cap.value} — hors de la plage ${cible[0]}–${cible[1]}`);
+      out.push(`pH du bassin à ${cap.value} : hors de la plage ${cible[0]}–${cible[1]}`);
   }
   const perimes = house.devices.filter((d) => house.stateOf(d.id)?.health === 'stale').length;
   if (perimes)
     out.push(`${perimes} équipement${perimes > 1 ? 's' : ''} ne répond${perimes > 1 ? 'ent' : ''} plus`);
   for (const c of house.connections.filter((c) => c.state === 'error'))
-    out.push(`${c.label} — ${c.detail ?? 'en panne'}`);
+    out.push(`${c.label} : ${c.detail ?? 'en panne'}`);
   return out;
 });
 
@@ -103,7 +110,6 @@ const dateLongue = computed(() =>
 );
 
 const eteindreTout = () => house.sendBulk(bilan.value.lightIds, { kind: 'switch', state: false });
-const volets = (position: number) => house.sendBulk(bilan.value.coverIds, { kind: 'cover', position });
 
 // ------------------------------------------------- le plan et son panneau
 
@@ -126,9 +132,27 @@ onBeforeUnmount(() => requete.removeEventListener('change', suivre));
 
 const pieceOuverte = computed(() => (selection.value ? house.zone(selection.value) : null));
 
+/**
+ * La famille ouverte dans le panneau : éclairage, volets, climat, ouvrants.
+ *
+ * Elle partage l'emplacement avec le détail de pièce, et les deux s'excluent :
+ * deux panneaux superposés au même endroit, ce serait deux réponses à la même
+ * question. Choisir une famille referme donc la pièce, et l'inverse.
+ */
+const categorie = ref<CategorieId | null>(null);
+
+function choisirCategorie(id: CategorieId | null) {
+  categorie.value = id;
+  if (id) {
+    selection.value = null;
+    annoncer(`Famille ouverte à côté du plan.`);
+  }
+}
+
 function ouvrir(zoneId: string) {
   if (!large.value) { void router.push(`/zone/${zoneId}`); return; }
   if (selection.value === zoneId) { fermer(); return; }
+  categorie.value = null;
   selection.value = zoneId;
   annoncer(`${house.zone(zoneId)?.label ?? 'Pièce'} ouverte à côté du plan.`);
 }
@@ -211,7 +235,14 @@ const hautMax = computed(() => Math.max(0.001, ...(energie.value?.seaux ?? []).m
       </p>
     </div>
 
-    <!-- Le plan à gauche, la pièce choisie à droite. -->
+    <!-- Les quatre familles : la question que le plan ne sait pas poser,
+         « où en sont les volets », toutes pièces confondues. -->
+    <CategorieRail :choisie="categorie" @choisir="choisirCategorie" />
+
+    <!-- Les cinq équipements qu'on touche tous les jours, avant tout le reste. -->
+    <TuilesEpinglees />
+
+    <!-- Le plan à gauche, la pièce ou la famille choisie à droite. -->
     <div
       class="grid gap-4 xl:items-start"
       :class="pieceOuverte ? 'xl:grid-cols-[1fr_minmax(360px,420px)]' : ''"
@@ -224,7 +255,14 @@ const hautMax = computed(() => Math.max(0.001, ...(energie.value?.seaux ?? []).m
           </p>
         </section>
 
-        <!-- Scénarios et volets côte à côte, comme dans le canvas. -->
+        <!--
+          Scénarios et activité côte à côte.
+
+          La carte « Volets » qui occupait cette place a disparu : le rail des
+          familles dit la même chose en tête d'écran : combien d'ouverts,
+          combien en mouvement, et son panneau offre en plus le détail pièce
+          par pièce. Deux comptages du même bien, c'était un de trop.
+        -->
         <div class="grid gap-4 sm:grid-cols-2 sm:items-start">
           <section class="rounded-[22px] border border-line bg-surface p-4">
             <div class="mb-3 flex items-center justify-between">
@@ -234,23 +272,7 @@ const hautMax = computed(() => Math.max(0.001, ...(energie.value?.seaux ?? []).m
             <SceneRow />
           </section>
 
-          <section class="rounded-[22px] border border-line bg-surface p-4">
-            <h2 class="label mb-3">Volets</h2>
-            <p class="font-mono text-2xl font-semibold tabular-nums leading-none">
-              {{ bilan.ouverts }}<span class="text-sm font-normal text-faint">/{{ bilan.covers }}</span>
-            </p>
-            <p class="mt-1 text-xs text-soft">
-              {{ bilan.bougent ? `${bilan.bougent} en mouvement` : 'ouverts' }}
-            </p>
-            <div class="mt-3 flex gap-2">
-              <button class="press flex-1 rounded-lg bg-ink/[0.06] py-2 text-xs font-medium" @click="volets(100)">
-                Ouvrir
-              </button>
-              <button class="press flex-1 rounded-lg bg-ink/[0.06] py-2 text-xs font-medium" @click="volets(0)">
-                Fermer
-              </button>
-            </div>
-          </section>
+          <JournalActivite />
         </div>
 
         <!-- La consommation du jour, si le suivi est allumé. -->
@@ -277,7 +299,13 @@ const hautMax = computed(() => Math.max(0.001, ...(energie.value?.seaux ?? []).m
         </section>
       </div>
 
-      <aside v-if="pieceOuverte" class="space-y-3">
+      <!-- Une famille choisie prend la place du détail de pièce : même
+           emplacement, même largeur, un seul panneau à la fois. -->
+      <aside v-if="categorie">
+        <CategorieDetail :categorie="categorie" @fermer="choisirCategorie(null)" />
+      </aside>
+
+      <aside v-else-if="pieceOuverte" class="space-y-3">
         <div class="flex items-center justify-between gap-3 px-1">
           <p class="label">Pièce sélectionnée</p>
           <div class="flex items-center gap-1">
@@ -307,11 +335,18 @@ const hautMax = computed(() => Math.max(0.001, ...(energie.value?.seaux ?? []).m
       </div>
     </section>
 
+    <!--
+      Ailleurs : les pièces qui n'ont pas de place sur le plan : le Général, la
+      Piscine, l'Extérieur. Une carte plus bavarde qu'ailleurs, parce que ce
+      sont justement celles qu'on consulte sans y aller : elle donne les
+      mesures et le geste directement, au lieu de renvoyer vers la pièce.
+    -->
     <section v-if="house.offPlanZones.length" class="space-y-2.5">
       <h2 class="label px-1">Ailleurs</h2>
       <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <RoomCard v-for="z in house.offPlanZones" :key="z.id" :zone="z" />
+        <CarteAilleurs v-for="z in house.offPlanZones" :key="z.id" :zone="z" />
       </div>
+      <VignettesCameras />
     </section>
   </div>
 </template>
