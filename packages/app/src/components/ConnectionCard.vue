@@ -119,6 +119,39 @@ const etat = computed(() => ETATS[props.status?.state ?? 'disabled']);
       </p>
     </template>
 
+    <!-- HOME ASSISTANT -->
+    <template v-if="c.kind === 'homeassistant'">
+      <label class="field">
+        <span>Adresse de Home Assistant</span>
+        <input
+          v-model="c.settings.url"
+          class="input font-mono text-sm"
+          placeholder="http://192.168.1.40:8123"
+        />
+      </label>
+      <label class="field">
+        <span>Jeton d'accès longue durée</span>
+        <input
+          v-model="c.settings.token"
+          type="password"
+          autocomplete="off"
+          class="input font-mono text-sm"
+          placeholder="collez ici le jeton copié dans Home Assistant"
+        />
+      </label>
+      <p class="hint">
+        Le jeton se crée dans Home Assistant, en bas de votre page de profil, à
+        « Jetons d'accès longue durée ». Il vaut mot de passe et ne ressort
+        jamais d'ici.
+      </p>
+      <p class="hint">
+        Les équipements raccordés ici n'ont rien à déclarer d'autre que leur
+        identifiant d'entité, par exemple
+        <span class="font-mono">light.salon</span>&nbsp;: Home Assistant décrit
+        lui-même ce qu'il expose, et le reste s'en déduit.
+      </p>
+    </template>
+
     <!-- MODBUS -->
     <template v-if="c.kind === 'modbus'">
       <div class="grid grid-cols-[1fr_auto_auto] gap-3">
@@ -173,7 +206,7 @@ const etat = computed(() => ETATS[props.status?.state ?? 'disabled']);
     <template v-if="c.kind === 'sim'">
       <p class="hint">
         Toujours actif, et non supprimable. Il sert tout ce qui n'est pas encore
-        raccordé — c'est ce qui permet d'équiper la maison pièce par pièce.
+        raccordé : c'est ce qui permet d'équiper la maison pièce par pièce.
       </p>
     </template>
 

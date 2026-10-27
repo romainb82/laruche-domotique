@@ -14,7 +14,7 @@
     "dev:app": "npm run dev -w @domo/app",
     "build": "npm run build:shared && npm run build -w @domo/server && npm run build -w @domo/app",
     "typecheck": "npm run typecheck -w @domo/shared && npm run typecheck -w @domo/server && npm run typecheck -w @domo/app",
-    "verifier": "node scripts/verifier-api.mjs && node scripts/verifier-cerveau.mjs && node scripts/verifier-http.mjs && node scripts/verifier-modbus.mjs && node scripts/verifier-homekit.mjs && node scripts/verifier-scenes.mjs && node scripts/verifier-planificateur.mjs && node scripts/verifier-energie.mjs && node scripts/verifier-cameras.mjs && node scripts/verifier-ui.mjs && node scripts/verifier-ui-cerveau.mjs",
+    "verifier": "node scripts/verifier-comptes.mjs && node scripts/verifier-api.mjs && node scripts/verifier-cerveau.mjs && node scripts/verifier-http.mjs && node scripts/verifier-modbus.mjs && node scripts/verifier-homeassistant.mjs && node scripts/verifier-homekit.mjs && node scripts/verifier-scenes.mjs && node scripts/verifier-planificateur.mjs && node scripts/verifier-energie.mjs && node scripts/verifier-cameras.mjs && node scripts/verifier-ui.mjs && node scripts/verifier-ui-cerveau.mjs",
     "verifier:api": "node scripts/verifier-api.mjs",
     "verifier:ui": "node scripts/verifier-ui.mjs",
     "verifier:cerveau": "node scripts/verifier-cerveau.mjs",
@@ -28,7 +28,11 @@
     "verifier:energie": "node scripts/verifier-energie.mjs",
     "verifier:cameras": "node scripts/verifier-cameras.mjs",
     "camera-factice": "node scripts/camera-factice.mjs",
-    "verifier:scenes": "node scripts/verifier-scenes.mjs"
+    "verifier:scenes": "node scripts/verifier-scenes.mjs",
+    "icones": "node scripts/icones-pwa.mjs",
+    "verifier:comptes": "node scripts/verifier-comptes.mjs",
+    "comptes:demo": "node scripts/comptes-demo.mjs",
+    "verifier:homeassistant": "node scripts/verifier-homeassistant.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

@@ -12,9 +12,10 @@ import { SimAdapter } from './sim.js';
 import { MqttAdapter } from './mqtt.js';
 import { HttpAdapter } from './http.js';
 import { ModbusAdapter } from './modbus.js';
+import { HomeAssistantAdapter } from './homeassistant.js';
 
 /**
- * Le registre — le cerveau de la connectivité.
+ * Le registre : le cerveau de la connectivité.
  *
  * Il fait tourner plusieurs adaptateurs en même temps et aiguille chaque
  * équipement vers le sien. Deux règles simples le gouvernent :
@@ -82,7 +83,7 @@ export class AdapterRegistry {
     await adapter.command(device, command);
   }
 
-  /** Quel canal sert cet équipement — c'est ce que l'interface affiche. */
+  /** Quel canal sert cet équipement : c'est ce que l'interface affiche. */
   canalDe(deviceId: string): string {
     return this.routage.get(deviceId) ?? SIM_CONNECTION;
   }
@@ -151,7 +152,7 @@ export class AdapterRegistry {
   /**
    * Les équipements servis par une connexion.
    * Le simulateur récupère tout ce qui n'est pas raccordé, et aussi ce qui
-   * pointe vers une connexion désactivée ou disparue — sinon un broker mis au
+   * pointe vers une connexion désactivée ou disparue, sinon un broker mis au
    * repos rendrait la moitié de la maison muette.
    */
   private equipementsDe(connexionId: string): DeviceConfig[] {
@@ -173,6 +174,7 @@ export class AdapterRegistry {
       case 'mqtt': return new MqttAdapter(ctx);
       case 'http': return new HttpAdapter(ctx);
       case 'modbus': return new ModbusAdapter(ctx);
+      case 'homeassistant': return new HomeAssistantAdapter(ctx);
       default:
         this.warn(`Type de connexion inconnu : ${String(connexion.kind)}`);
         return null;

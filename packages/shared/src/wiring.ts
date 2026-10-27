@@ -1,30 +1,31 @@
 import type { CapabilityKind, Command } from './types.js';
 
 /**
- * Le raccordement — le cerveau de la connectivité.
+ * Le raccordement : le cerveau de la connectivité.
  *
  * Objectif : pouvoir brancher n'importe quel matériel sans écrire une ligne de
  * code. Pour ça, trois notions suffisent :
  *
- *   1. une CONNEXION  — un canal vers le monde extérieur (un broker MQTT, une
+ *   1. une CONNEXION : un canal vers le monde extérieur (un broker MQTT, une
  *                       API HTTP, le simulateur…) ;
- *   2. une LECTURE    — d'où vient une valeur, et dans quelle case du modèle
+ *   2. une LECTURE, d'où vient une valeur, et dans quelle case du modèle
  *                       elle atterrit ;
- *   3. une ÉCRITURE   — où envoyer une commande, et sous quelle forme.
+ *   3. une ÉCRITURE : où envoyer une commande, et sous quelle forme.
  *
- * Tout le reste — marques, protocoles, formats de charge utile — se règle avec
+ * Tout le reste : marques, protocoles, formats de charge utile : se règle avec
  * des transformations déclaratives. Aucun `eval`, aucun code utilisateur.
  */
 
 // ------------------------------------------------------------------ connexions
 
-export type ConnectionKind = 'sim' | 'mqtt' | 'http' | 'modbus';
+export type ConnectionKind = 'sim' | 'mqtt' | 'http' | 'modbus' | 'homeassistant';
 
 export const CONNECTION_LABELS: Record<ConnectionKind, string> = {
   sim: 'Simulateur',
   mqtt: 'Broker MQTT',
   http: 'API HTTP',
   modbus: 'Modbus TCP',
+  homeassistant: 'Home Assistant',
 };
 
 export interface MqttConnectionSettings {
@@ -44,12 +45,12 @@ export interface HttpConnectionSettings {
 }
 
 /**
- * Modbus TCP — le protocole du matériel technique.
+ * Modbus TCP : le protocole du matériel technique.
  *
  * Pompes à chaleur, centrales de traitement d'air, compteurs d'énergie,
  * onduleurs : ce monde-là ne parle ni MQTT ni JSON. Il expose des registres
  * numérotés, et rien d'autre. Pas de découverte possible : aucun équipement
- * Modbus ne sait dire ce qu'il contient — c'est la documentation du fabricant
+ * Modbus ne sait dire ce qu'il contient : c'est la documentation du fabricant
  * qui fait foi. En revanche on peut LIRE une plage et montrer ce qui s'y
  * trouve, ce qui revient presque au même à l'usage.
  *
@@ -77,12 +78,45 @@ export interface ModbusConnectionSettings {
   scanCount: number;
 }
 
+/**
+ * Home Assistant, en moteur d'integration.
+ *
+ * Le raisonnement est celui du cout : ecrire un adaptateur par marque de
+ * materiel est un travail sans fin, et Home Assistant en a deja deux mille.
+ * Plutot que de refaire ce travail, on lui parle comme a un canal de plus.
+ *
+ * Il ne REMPLACE pas les autres : les Shelly et le Zigbee continuent d'arriver
+ * en direct par MQTT. Home Assistant ne sert qu'a ce qu'on ne sait pas joindre
+ * autrement, pour qu'une panne de sa part n'eteigne qu'une partie de la maison
+ * et jamais la totalite.
+ *
+ * Une particularite par rapport aux autres canaux : les equipements n'ont RIEN
+ * a declarer au-dela de leur identifiant d'entite. Home Assistant decrit
+ * lui-meme ce qu'il expose (`light.salon` est une lumiere, `cover.veranda` un
+ * volet), donc l'adaptateur en deduit tout le reste. Pas de topic a deviner,
+ * pas de registre a chercher dans une documentation.
+ */
+export interface HomeAssistantConnectionSettings {
+  /** `http://192.168.1.40:8123`. L'adaptateur en derive l'adresse WebSocket. */
+  url: string;
+  /**
+   * Un jeton d'acces longue duree, cree dans le profil utilisateur de Home
+   * Assistant. Il vaut mot de passe : il n'est jamais rendu a l'interface.
+   */
+  token: string;
+}
+
 export interface Connection {
   id: string;
   kind: ConnectionKind;
   label: string;
   enabled: boolean;
-  settings: Partial<MqttConnectionSettings & HttpConnectionSettings & ModbusConnectionSettings>;
+  settings: Partial<
+    MqttConnectionSettings &
+      HttpConnectionSettings &
+      ModbusConnectionSettings &
+      HomeAssistantConnectionSettings
+  >;
 }
 
 /** État vivant d'une connexion, remonté à l'interface. */
@@ -236,7 +270,7 @@ export interface Candidate {
  *
  * `coil` et `discrete` portent des bits, `holding` et `input` des mots de
  * 16 bits. Les deux premières de chaque paire s'écrivent, les autres se
- * lisent seulement — c'est le protocole qui en décide, pas nous.
+ * lisent seulement : c'est le protocole qui en décide, pas nous.
  */
 export type ModbusTable = 'coil' | 'discrete' | 'holding' | 'input';
 
@@ -283,7 +317,7 @@ export interface ModbusAddress {
 }
 
 export const MODBUS_ADDRESS_HINT =
-  'Forme : table:adresse[:type] — par exemple holding:100, coil:5, ' +
+  'Forme : table:adresse[:type] : par exemple holding:100, coil:5, ' +
   'input:12:float32. L’adresse est brute et commence à 0 : un document qui ' +
   'annonce 40101 en notation Modicon désigne holding:100 ici.';
 
@@ -292,7 +326,7 @@ export const MODBUS_ADDRESS_HINT =
  *
  * Rend un message en français plutôt qu'un `null` muet : une adresse Modbus
  * mal tapée ne se voit pas à l'œil, et l'équipement ne dira jamais qu'on lui
- * parle du mauvais registre — il répondra une valeur, fausse.
+ * parle du mauvais registre : il répondra une valeur, fausse.
  */
 export function parseModbusAddress(
   source: string,
