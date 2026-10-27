@@ -4,7 +4,7 @@ Deux dossiers, deux rôles :
 
 | | Quoi | Comment on l'ouvre |
 |---|---|---|
-| `DomoKit/` | Le **paquet Swift** : types du domaine, client REST, flux WebSocket, découverte Bonjour, état observable. Aucune interface. | `swift build`, `swift test` — ou ouvrir `Package.swift` |
+| `DomoKit/` | Le **paquet Swift** : types du domaine, client REST, flux WebSocket, découverte Bonjour, état observable. Aucune interface. | `swift build`, `swift test`, ou ouvrir `Package.swift` |
 | `Maison/` | L'**app iOS** SwiftUI. C'est ici qu'est le projet Xcode. | `open Maison/Maison.xcodeproj` |
 
 `DomoKit` n'a **pas** de projet Xcode : c'est un paquet Swift, il n'en a pas besoin.
@@ -48,7 +48,7 @@ racontent la même histoire. Chaque test interroge le **vrai** serveur et décod
 sa **vraie** réponse. Une dérive du contrat casse ici, au moment de compiler,
 plutôt que sur le téléphone six mois plus tard.
 
-Ils sont ignorés si le cerveau ne tourne pas — pas de suite rouge parce qu'on a
+Ils sont ignorés si le cerveau ne tourne pas : pas de suite rouge parce qu'on a
 oublié `npm run dev`.
 
 ---
@@ -86,7 +86,7 @@ et les raccourcis Siri.
 ## Comment l'app trouve la maison
 
 Le serveur s'annonce en Bonjour (`_domotique._tcp`) et publie son **nom d'hôte
-réel** dans l'enregistrement TXT — pas le nom du service. Confondre les deux
+réel** dans l'enregistrement TXT : pas le nom du service. Confondre les deux
 mène à chercher un `maison.local` qui n'existe pas.
 
 L'app cherche, **vérifie que l'adresse répond vraiment**, et ne bascule que si

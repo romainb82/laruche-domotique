@@ -1,0 +1,90 @@
+# La Ruche : le cerveau de la maison, en service système.
+#
+# Installation et mise à jour : voir INSTALLER.md, à côté de ce fichier.
+#
+#   sudo ln -s /opt/ruche/deploiement/ruche.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now ruche
+
+[Unit]
+Description=La Ruche : cerveau domotique
+Documentation=file:/opt/ruche/deploiement/INSTALLER.md
+
+# `network-online` et non `network` : l'annonce Bonjour et la connexion au
+# courtier MQTT ont besoin d'une adresse IP attribuée, pas seulement d'une
+# interface qui existe.
+Wants=network-online.target
+After=network-online.target
+
+# Si Mosquitto tourne sur la même machine, on le laisse démarrer d'abord. Pas
+# de `Requires` : l'adaptateur MQTT sait reconnecter, et un courtier en panne
+# ne doit pas empêcher d'allumer une lampe par ailleurs.
+After=mosquitto.service
+
+# Sans ces deux lignes, cinq échecs rapprochés : un câble réseau débranché au
+# mauvais moment : mettent l'unité en échec DÉFINITIF, et la maison reste
+# morte jusqu'à ce que quelqu'un s'en aperçoive.
+StartLimitIntervalSec=0
+StartLimitBurst=0
+
+[Service]
+Type=simple
+User=ruche
+Group=ruche
+WorkingDirectory=/opt/ruche
+
+Environment=NODE_ENV=production
+Environment=PORT=3001
+Environment=HOST=0.0.0.0
+
+# L'état vit HORS du code. /opt/ruche est remplacé à chaque déploiement ;
+# /var/lib/ruche survit. `StateDirectory` le crée au démarrage avec le bon
+# propriétaire, ce qui évite un `chown` oublié après la première installation.
+StateDirectory=ruche
+Environment=DB_FILE=/var/lib/ruche/domotique.db
+Environment=HOMEKIT_DIR=/var/lib/ruche/homekit
+
+# Vérifier le chemin réel : `command -v node`. Une installation par nvm le
+# place ailleurs, et systemd n'a pas le PATH d'un shell de connexion.
+ExecStart=/usr/bin/node /opt/ruche/packages/server/dist/index.js
+
+# Un cerveau de maison qui s'arrête à 3 h du matin et attend qu'on le relance
+# n'est pas un cerveau de maison.
+Restart=always
+RestartSec=5
+
+# Le serveur intercepte SIGTERM et ferme proprement la base, le pont HomeKit
+# et l'annonce réseau. On lui en laisse le temps plutôt que de le tuer : une
+# base SQLite coupée en pleine écriture se répare mal.
+TimeoutStopSec=20
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ruche
+
+# ---------------------------------------------------------- durcissement
+#
+# Le serveur n'a aucune authentification et pilote des caméras d'intérieur.
+# Tant que ce n'est pas corrigé, autant qu'une faille dans une dépendance ne
+# donne pas la machine entière.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+# `ProtectSystem=strict` met tout le disque en lecture seule : on rouvre la
+# seule chose qui doit s'écrire.
+ReadWritePaths=/var/lib/ruche
+
+[Install]
+WantedBy=multi-user.target

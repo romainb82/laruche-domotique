@@ -1,0 +1,33 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+
+<!--
+  Annonce Bonjour confiée à avahi-daemon.
+
+  À N'INSTALLER QUE si la découverte automatique se montre capricieuse. Par
+  défaut, le serveur s'annonce lui-même avec `bonjour-service` et ça suffit.
+  Sur Raspberry Pi OS, avahi-daemon tourne déjà et occupe le port mDNS 5353 :
+  les deux cohabitent le plus souvent, mais deux répondeurs sur le même
+  service peuvent se contredire.
+
+  Si tu installes ce fichier, mets `BONJOUR=off` dans l'unité systemd pour
+  faire taire l'annonce du serveur, sinon tu auras le problème en double.
+
+    sudo cp ruche-avahi.service /etc/avahi/services/ruche.service
+    sudo systemctl restart avahi-daemon
+
+  Les deux champs TXT ci-dessous ne sont pas décoratifs : l'application iOS
+  construit l'adresse du serveur à partir d'eux (DomoKit/Discovery.swift).
+  `host` doit être le nom mDNS réel de la machine : si tu as appelé le Pi
+  autrement que « ruche », corrige-le ici.
+-->
+<service-group>
+  <name replace-wildcards="yes">La Ruche sur %h</name>
+  <service>
+    <type>_domotique._tcp</type>
+    <port>3001</port>
+    <txt-record>version=1</txt-record>
+    <txt-record>host=ruche.local</txt-record>
+    <txt-record>port=3001</txt-record>
+  </service>
+</service-group>

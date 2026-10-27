@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Gabarit : ne pas charger ce fichier tel quel. `installer-launchd.sh` y
+  substitue les chemins réels et dépose le résultat dans
+  ~/Library/LaunchAgents/.
+
+  C'est un AGENT et non un DAEMON : il démarre à l'ouverture de session, pas au
+  boot. Un daemon démarrerait plus tôt, mais le dépôt vit sous ~/Documents, que
+  macOS protège : un processus lancé hors session s'y voit refuser l'accès sans
+  message clair. L'agent hérite des autorisations de la session, ce qui évite
+  tout ce chapitre.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>fr.webpremiere.ruche</string>
+
+  <!--
+    Chemin absolu de Node, obligatoire : launchd ne lit aucun profil de shell,
+    donc ni nvm ni PATH. Après une montée de version de Node, relancer
+    installer-launchd.sh, sinon l'agent pointe vers un binaire disparu.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__RACINE__/packages/server/dist/index.js</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__RACINE__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>PORT</key>
+    <string>3001</string>
+    <key>HOST</key>
+    <string>0.0.0.0</string>
+    <!--
+      Sur le Mac, l'état reste dans le dépôt : c'est une étape d'attente, pas
+      une installation. Sur le Pi il part dans /var/lib/ruche.
+    -->
+    <key>DB_FILE</key>
+    <string>__RACINE__/data/domotique.db</string>
+    <key>HOMEKIT_DIR</key>
+    <string>__RACINE__/data/homekit</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Relancé s'il s'arrête, quelle qu'en soit la raison. -->
+  <key>KeepAlive</key>
+  <true/>
+
+  <!--
+    Dix secondes entre deux tentatives. Sans ça, un serveur qui échoue au
+    démarrage : port déjà pris, base corrompue : serait relancé en boucle
+    serrée et ferait chauffer la machine pour rien.
+  -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>__RACINE__/data/ruche.log</string>
+  <key>StandardErrorPath</key>
+  <string>__RACINE__/data/ruche.log</string>
+</dict>
+</plist>
