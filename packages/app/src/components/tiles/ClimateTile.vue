@@ -17,6 +17,7 @@ const house = useHouse();
 
 const state = computed(() => house.stateOf(props.device.id));
 const injoignable = computed(() => !state.value || state.value.health !== 'online');
+const pending = computed(() => state.value?.pending ?? false);
 const climate = computed(() => findCap(state.value, 'climate'));
 
 const bornes = computed(() => ({
@@ -39,19 +40,19 @@ const versConsigne = (pct: number) => {
 
 const drag = useTileDrag({
   valeur: () => pourcent.value,
-  actionnable: () => !injoignable.value,
+  actionnable: () => !injoignable.value && !pending.value,
   onGlisser: (v) => void house.send(props.device.id, { kind: 'climate', setpoint: versConsigne(v) }),
   onToucher: () => {},
 });
 
-const affichePct = computed(() => drag.apercu.value ?? pourcent.value);
+const affichePct = computed(() => (injoignable.value ? 0 : (drag.apercu.value ?? pourcent.value)));
 const afficheConsigne = computed(() =>
   drag.apercu.value !== null ? versConsigne(drag.apercu.value) : (climate.value?.setpoint ?? 20),
 );
 
 function pousser(delta: number) {
   const c = climate.value;
-  if (!c || injoignable.value) return;
+  if (!c || injoignable.value || pending.value) return;
   const { min, max } = bornes.value;
   const next = Math.min(max, Math.max(min, c.setpoint + delta));
   if (next !== c.setpoint) void house.send(props.device.id, { kind: 'climate', setpoint: next });
@@ -102,11 +103,11 @@ function pousser(delta: number) {
       </div>
 
       <div class="flex shrink-0 items-center gap-2">
-        <button class="pas" :disabled="injoignable" aria-label="Baisser la consigne" @click="pousser(-0.5)">−</button>
+        <button class="pas" :disabled="injoignable || pending" aria-label="Baisser la consigne" @click="pousser(-0.5)">−</button>
         <span class="w-[62px] text-center font-mono text-2xl font-semibold tabular-nums leading-none text-ink">
           {{ injoignable ? '-' : afficheConsigne.toFixed(1) }}<span class="text-sm">°</span>
         </span>
-        <button class="pas" :disabled="injoignable" aria-label="Monter la consigne" @click="pousser(0.5)">+</button>
+        <button class="pas" :disabled="injoignable || pending" aria-label="Monter la consigne" @click="pousser(0.5)">+</button>
       </div>
     </div>
   </div>

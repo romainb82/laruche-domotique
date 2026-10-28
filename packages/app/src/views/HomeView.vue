@@ -16,6 +16,7 @@
  *    après les scénarios, et il était noyé dans une tuile de comptage.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { http } from '@/stores/http';
 import { useRouter } from 'vue-router';
 import { findCap } from '@domo/shared';
 import { useHouse } from '@/stores/house';
@@ -176,7 +177,7 @@ const energie = ref<{ kwh: number; seaux: { kwh: number; futur: boolean }[]; wat
 async function lireEnergie() {
   if (!house.config?.energy?.visible) return;
   try {
-    const b = await (await fetch('/api/energy?period=jour')).json();
+    const b = await http<{ meter: { watts: number | null } | null; kwh: number; seaux: { kwh: number; futur: boolean }[] }>('/api/energy?period=jour');
     energie.value = b.meter ? { kwh: b.kwh, seaux: b.seaux, watts: b.meter.watts } : null;
   } catch {
     energie.value = null;

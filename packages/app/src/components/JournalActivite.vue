@@ -12,6 +12,7 @@
  * donner d'un geste qu'elle n'a pas provoqué.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { http } from '@/stores/http';
 import type { ActionLogEntry } from '@domo/shared';
 import { useHouse } from '@/stores/house';
 
@@ -36,8 +37,7 @@ const RESULTATS: Record<string, string> = {
 
 async function charger() {
   try {
-    const r = await fetch('/api/journal');
-    if (r.ok) entrees.value = ((await r.json())?.entries ?? []) as ActionLogEntry[];
+    entrees.value = (await http<{ entries: ActionLogEntry[] }>('/api/journal')).entries ?? [];
   } catch {
     /* le bandeau global dit déjà que le serveur est injoignable */
   } finally {

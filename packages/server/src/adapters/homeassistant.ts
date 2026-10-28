@@ -154,7 +154,17 @@ export class HomeAssistantAdapter extends BaseAdapter {
         else resolve();
       };
 
+      // Node remonte une exception levée dans un écouteur d'EventTarget en
+      // `uncaughtException` : on cloisonne, un message cassé n'est qu'un
+      // message perdu.
       socket.addEventListener('message', (ev: MessageEvent) => {
+        try {
+          traiterMessage(ev);
+        } catch (e) {
+          this.ctx.warn(`[${this.ctx.connection.label}] message ignoré : ${(e as Error).message}`);
+        }
+      });
+      const traiterMessage = (ev: MessageEvent) => {
         let m: Message;
         try {
           m = JSON.parse(String(ev.data)) as Message;
@@ -186,7 +196,7 @@ export class HomeAssistantAdapter extends BaseAdapter {
         }
 
         this.recevoir(m);
-      });
+      };
 
       socket.addEventListener('error', () => {
         // L'evenement `error` d'un WebSocket ne porte jamais de detail
@@ -214,12 +224,18 @@ export class HomeAssistantAdapter extends BaseAdapter {
     this.attentes.clear();
 
     if (this.arrete) return;
+    // Un échec produit DEUX appels : l'événement `close` du socket, puis le
+    // rejet de `ouvrir()`. Une seule reprise doit en sortir, sinon chaque
+    // tentative en engendre deux, et une nuit de Home Assistant éteint finit
+    // en milliers de sockets ouverts en même temps.
+    if (this.reconnexion) return;
     this.marquer('error', 'Connexion perdue, reprise en cours.');
 
     // On double l'attente a chaque echec : un serveur qui redemarre met
     // quelques secondes, un serveur eteint met des heures, et marteler sa
     // porte toutes les secondes n'avance a rien.
     this.reconnexion = setTimeout(() => {
+      this.reconnexion = null;
       this.ouvrir().catch((e: Error) => {
         this.marquer('error', e.message);
         this.perdue();
@@ -284,7 +300,7 @@ export class HomeAssistantAdapter extends BaseAdapter {
 
     this.dernier = new Date().toISOString();
     for (const device of cibles) {
-      const caps = traduire(etat, device);
+      const caps = traduire(etat, device, this.ctx.courant?.(device.id) ?? []);
       if (caps.length) this.ctx.emit({ deviceId: device.id, caps });
     }
   }
@@ -341,10 +357,10 @@ const domaineDe = (entite: string) => entite.split('.')[0] ?? '';
  * eux. Ce qui n'est pas liste ici est ignore : mieux vaut un equipement muet
  * qu'un etat invente.
  */
-function traduire(etat: Etat, device: DeviceConfig): Capability[] {
+function traduire(etat: Etat, device: DeviceConfig, base: Capability[]): Capability[] {
   const domaine = domaineDe(etat.entity_id);
   const a = etat.attributes;
-  let caps: Capability[] = [];
+  let caps: Capability[] = base;
 
   const met = (champ: CapField, v: unknown) => {
     caps = poser(caps, device, champ, v);

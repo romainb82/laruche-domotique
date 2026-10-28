@@ -28,7 +28,14 @@ const props = withDefaults(defineProps<{
   teinte?: 'glow' | 'jour';
 }>(), { pas: 0.5, actif: true, desactive: false, teinte: 'glow', unite: '', legende: '' });
 
-const emit = defineEmits<{ 'update:valeur': [v: number] }>();
+/**
+ * Deux événements, et la différence compte : `apercu` suit le doigt et ne
+ * sert qu'à dessiner ; `update:valeur` part UNE fois, au relâché, et c'est
+ * lui qui commande la maison. Avant, chaque mouvement du doigt envoyait une
+ * commande : des dizaines de requêtes par seconde vers un Modbus ou un broker.
+ */
+const emit = defineEmits<{ 'update:valeur': [v: number]; apercu: [v: number] }>();
+let derniere: number | null = null;
 
 const DEPART = 135;
 const COURSE = 270;
@@ -84,18 +91,27 @@ function debut(e: PointerEvent) {
   glisse.value = true;
   (e.currentTarget as Element).setPointerCapture(e.pointerId);
   const v = versValeur(e);
-  if (v !== null) emit('update:valeur', v);
+  if (v !== null) {
+    derniere = v;
+    emit('apercu', v);
+  }
 }
 
 function bouge(e: PointerEvent) {
   if (!glisse.value) return;
   const v = versValeur(e);
-  if (v !== null) emit('update:valeur', v);
+  if (v !== null && v !== derniere) {
+    derniere = v;
+    emit('apercu', v);
+  }
 }
 
 function fin(e: PointerEvent) {
+  if (!glisse.value) return;
   glisse.value = false;
   (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
+  if (derniere !== null) emit('update:valeur', derniere);
+  derniere = null;
 }
 
 function pousser(delta: number) {

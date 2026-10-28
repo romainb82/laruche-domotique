@@ -13,6 +13,7 @@
  * rangée de cadres vides n'apprendrait rien à personne.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { http } from '@/stores/http';
 
 interface Camera {
   id: string;
@@ -37,8 +38,7 @@ let minuterie = 0;
 
 onMounted(async () => {
   try {
-    const r = await fetch('/api/cameras');
-    if (r.ok) cameras.value = ((await r.json())?.cameras ?? []) as Camera[];
+    cameras.value = (await http<{ cameras: Camera[] }>('/api/cameras')).cameras ?? [];
   } catch {
     /* le bandeau global signale déjà un serveur injoignable */
   }

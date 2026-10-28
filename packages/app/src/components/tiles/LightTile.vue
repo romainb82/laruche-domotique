@@ -31,7 +31,7 @@ const niveau = computed(() => {
 
 const drag = useTileDrag({
   valeur: () => niveau.value,
-  actionnable: () => !injoignable.value && variable.value,
+  actionnable: () => !injoignable.value && !pending.value && variable.value,
   onGlisser: (v) => {
     if (v === 0) void house.send(props.device.id, { kind: 'switch', state: false });
     else void house.send(props.device.id, { kind: 'dim', level: Math.max(5, v) });
@@ -39,11 +39,14 @@ const drag = useTileDrag({
   onToucher: () => void house.send(props.device.id, { kind: 'switch', state: !allume.value }),
 });
 
-/** Ce qu'on montre : l'aperçu pendant le geste, l'état réel sinon. */
-const remplissage = computed(() => drag.apercu.value ?? niveau.value);
+/**
+ * Ce qu'on montre : l'aperçu pendant le geste, l'état réel sinon, et RIEN
+ * pour un équipement périmé : sa dernière valeur connue ne vaut plus.
+ */
+const remplissage = computed(() => (injoignable.value ? 0 : (drag.apercu.value ?? niveau.value)));
 
 function basculer() {
-  if (injoignable.value) return;
+  if (injoignable.value || pending.value) return;
   void house.send(props.device.id, { kind: 'switch', state: !allume.value });
 }
 </script>
@@ -62,13 +65,13 @@ function basculer() {
     :aria-valuenow="variable ? niveau : undefined"
     :aria-valuemin="variable ? 0 : undefined"
     :aria-valuemax="variable ? 100 : undefined"
-    :aria-valuetext="variable ? (allume ? `allumé à ${niveau} %` : 'éteint') : undefined"
+    :aria-valuetext="variable ? (injoignable ? 'valeur périmée' : allume ? `allumé à ${niveau} %` : 'éteint') : undefined"
     @pointerdown="variable ? drag.onPointerdown($event) : undefined"
     @click="variable ? undefined : basculer()"
     @keydown.enter.prevent="basculer"
     @keydown.space.prevent="basculer"
-    @keydown.up.prevent="variable && house.send(device.id, { kind: 'dim', level: Math.min(100, niveau + 10) })"
-    @keydown.down.prevent="variable && house.send(device.id, { kind: 'dim', level: Math.max(0, niveau - 10) })"
+    @keydown.up.prevent="variable && !injoignable && !pending && house.send(device.id, { kind: 'dim', level: Math.min(100, niveau + 10) })"
+    @keydown.down.prevent="variable && !injoignable && !pending && house.send(device.id, { kind: 'dim', level: Math.max(0, niveau - 10) })"
   >
     <!-- la lumière monte à hauteur de l'intensité -->
     <div

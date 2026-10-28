@@ -12,6 +12,7 @@
 		2A02907C25C4949392AE195E /* AuditAccessibilite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCEDF6B12FE1E903C391FA8 /* AuditAccessibilite.swift */; };
 		319ED2E9FA73AB2242EF7297 /* SensorTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B3BB46FA6AF282B8138202 /* SensorTile.swift */; };
 		51E418695D3A5872B9E2BE14 /* HouseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C759EE323913D02527333D8 /* HouseView.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* LoginView.swift */; };
 		66232AE2E610D3203D3FB936 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 690B1B45FA6CED7BC4CBF6DA /* Assets.xcassets */; };
 		6B1083BC3ACD06A030AB69AB /* LightTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53E87B975A647668FD6A0A6E /* LightTile.swift */; };
 		8227DEF2C76F99A687E7518C /* CoverTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 733C48593672DAD8461B3567 /* CoverTile.swift */; };
@@ -46,6 +47,7 @@
 		690B1B45FA6CED7BC4CBF6DA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		733C48593672DAD8461B3567 /* CoverTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverTile.swift; sourceTree = "<group>"; };
 		7C759EE323913D02527333D8 /* HouseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseView.swift; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6D /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		948F1A01C7CE02A7A3A2D729 /* ClimateTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimateTile.swift; sourceTree = "<group>"; };
 		C5778019FF4B8F20F0805080 /* RadialDial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialDial.swift; sourceTree = "<group>"; };
 		D371B84A8D73B67D27984B06 /* HousePlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HousePlanView.swift; sourceTree = "<group>"; };
@@ -70,6 +72,7 @@
 			children = (
 				D371B84A8D73B67D27984B06 /* HousePlanView.swift */,
 				7C759EE323913D02527333D8 /* HouseView.swift */,
+				B2C3D4E5F60718293A4B5C6D /* LoginView.swift */,
 				19FD420F1AD981334A21CF50 /* RoomView.swift */,
 			);
 			path = Views;
@@ -248,6 +251,7 @@
 				96DEE42E7BAC1D8B0C6DF780 /* DeviceTile.swift in Sources */,
 				A02B682DD2337CF0818A7B7C /* HousePlanView.swift in Sources */,
 				51E418695D3A5872B9E2BE14 /* HouseView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* LoginView.swift in Sources */,
 				6B1083BC3ACD06A030AB69AB /* LightTile.swift in Sources */,
 				17F853EE32E00C8AD9AB2772 /* MaisonApp.swift in Sources */,
 				9F3BBFFC229866325FCC579E /* RadialDial.swift in Sources */,

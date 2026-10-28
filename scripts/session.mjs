@@ -66,6 +66,13 @@ export async function ouvrirSession(base = 'http://localhost:3001') {
   }
 
   const jeton = d.jeton;
+  if (!etat.installe) {
+    console.warn(
+      `\n[session] ATTENTION : la base était vierge, le script vient de créer l'administrateur « ${IDENT} »\n` +
+        `          avec un mot de passe PUBLIC. Ne lancez jamais la vérification sur la machine de la maison\n` +
+        `          avant d'y avoir créé votre propre compte ; sinon supprimez ce compte depuis Réglages → Comptes.\n`,
+    );
+  }
 
   globalThis.fetch = (url, options = {}) => {
     const entetes = new Headers(options.headers ?? {});
@@ -75,7 +82,81 @@ export async function ouvrirSession(base = 'http://localhost:3001') {
     return brut(url, { ...options, headers: entetes });
   };
 
+  await protegerLaMaison(base);
+
   return { jeton, compte: d.compte };
+}
+
+/**
+ * La maison d'avant, remise telle quelle à la sortie.
+ *
+ * Les scripts de vérification réécrivent la configuration (canaux d'essai,
+ * équipements `test.*`, scènes) et faisaient leur ménage en remettant les
+ * équipements SANS raccordement : lancés une fois contre une maison
+ * configurée, ils effaçaient tous les raccordements. Et une exception avant
+ * le ménage laissait la maison en état de test.
+ *
+ * Désormais : on photographie la configuration ENTIÈRE à l'entrée, on la
+ * remet à l'identique à la sortie, quelle que soit la sortie (`process.exit`,
+ * exception, promesse rejetée), et on ferme la session ouverte par le script.
+ *
+ * Et avant tout ça, un garde-fou : contre une maison qui a de vrais
+ * raccordements, de vrais canaux ou des caméras, le script refuse de tourner
+ * sans `RUCHE_VERIF_OK=1`. Une base de développement n'a rien de tout ça.
+ */
+async function protegerLaMaison(base) {
+  const cfg0 = await fetch(`${base}/api/config`).then((r) => r.json()).catch(() => null);
+  if (!cfg0 || !cfg0.devices) return; // compte sans droit de lecture complète : rien à protéger
+
+  const raccordes = cfg0.devices.filter((d) => d.binding && d.binding.connectionId !== 'sim').length;
+  const canaux = (cfg0.connections ?? []).filter((c) => c.kind !== 'sim' && c.enabled).length;
+  const cameras = (cfg0.cameras ?? []).length;
+  if ((raccordes || canaux || cameras) && process.env.RUCHE_VERIF_OK !== '1') {
+    console.error(
+      `\n[session] Cette maison a l'air d'être la VRAIE : ${raccordes} raccordement(s), ${canaux} canal(aux) actif(s), ${cameras} caméra(s).\n` +
+        `          Les scripts de vérification réécrivent la configuration. Pour insister : RUCHE_VERIF_OK=1\n`,
+    );
+    process.exit(1);
+  }
+
+  const photo = JSON.stringify(cfg0);
+  let fait = false;
+  const sortie = process.exit.bind(process);
+
+  async function restaurer() {
+    if (fait) return;
+    fait = true;
+    try {
+      const actuel = await fetch(`${base}/api/config`).then((r) => r.json());
+      if (JSON.stringify(actuel) !== photo) {
+        const r = await fetch(`${base}/api/config`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: photo,
+        });
+        if (!r.ok) console.error(`[session] la maison n'a pas pu être remise en état : ${r.status}`);
+      }
+      await fetch(`${base}/api/auth/logout`, { method: 'POST' });
+    } catch (e) {
+      console.error(`[session] remise en état impossible : ${e.message}`);
+    }
+  }
+
+  // Toute sortie passe par ici : la fin normale du script, comme ses échecs.
+  process.exit = (code) => {
+    void restaurer().then(() => sortie(code ?? process.exitCode ?? 0));
+  };
+  process.on('uncaughtException', (e) => {
+    console.error(e);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (e) => {
+    console.error(e);
+    process.exit(1);
+  });
+  process.on('beforeExit', () => {
+    if (!fait) process.exit(process.exitCode ?? 0);
+  });
 }
 
 /**

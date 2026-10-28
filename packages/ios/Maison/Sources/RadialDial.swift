@@ -20,7 +20,13 @@ struct RadialDial: View {
     var pas: Double = 0.5
     var teinte: Color = Theme.glow
     var desactive: Bool = false
+    /// Suit le doigt : ne sert qu'à dessiner l'aperçu.
+    var onApercu: (Double) -> Void = { _ in }
+    /// Part UNE fois, au relâché (ou sur ±) : c'est lui qui commande la maison.
+    /// Avant, chaque mouvement du doigt envoyait une commande : des dizaines
+    /// de requêtes par seconde vers un Modbus ou un broker.
     let onChange: (Double) -> Void
+    @State private var derniere: Double?
 
     /// Taille du cadran. Fixe et modeste : sur un téléphone, la place gagnée
     /// profite aux équipements en dessous.
@@ -84,7 +90,15 @@ struct RadialDial: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { g in
                         guard !desactive else { return }
-                        if let v = valeur(depuis: g.location) { onChange(v) }
+                        if let v = valeur(depuis: g.location), v != derniere {
+                            derniere = v
+                            onApercu(v)
+                        }
+                    }
+                    .onEnded { _ in
+                        guard !desactive, let v = derniere else { return }
+                        derniere = nil
+                        onChange(v)
                     }
             )
             .opacity(desactive ? 0.45 : 1)

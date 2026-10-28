@@ -58,7 +58,15 @@ export class MqttAdapter extends BaseAdapter {
     this.client.on('close', () => {
       if (this.etat === 'connected') this.marquer('connecting', 'Connexion perdue, reprise en cours.');
     });
-    this.client.on('message', (topic, payload) => this.recevoir(topic, payload.toString()));
+    this.client.on('message', (topic, payload) => {
+      try {
+        this.recevoir(topic, payload.toString());
+      } catch (e) {
+        // Un pipeline mal configuré ou une charge utile inattendue ne doit
+        // jamais faire tomber le serveur : ce message est perdu, pas la maison.
+        this.ctx.warn(`[${this.ctx.connection.label}] message ignoré sur ${topic} : ${(e as Error).message}`);
+      }
+    });
 
     await new Promise<void>((resolve, reject) => {
       const c = this.client;
@@ -133,7 +141,7 @@ export class MqttAdapter extends BaseAdapter {
       const valeur = read.pipeline.length ? applyPipeline(brut, read.pipeline) : brut;
       if (valeur === undefined) continue;
 
-      const entree = parEquipement.get(device.id) ?? { device, caps: [] };
+      const entree = parEquipement.get(device.id) ?? { device, caps: this.ctx.courant?.(device.id) ?? [] };
       entree.caps = poser(entree.caps, device, read.into as CapField, valeur);
       parEquipement.set(device.id, entree);
     }

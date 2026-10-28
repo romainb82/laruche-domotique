@@ -100,9 +100,14 @@ export function prochaineOccurrence(
   const heure = Number(m[1]);
   const minute = Number(m[2]);
 
+  // On avance de jours MURAUX, pas de tranches de 24 heures : la nuit du
+  // passage à l'heure d'été ne dure que 23 heures, et « 23:30 + 24 h »
+  // sauterait alors le dimanche entier. On part de midi du jour courant,
+  // heure qui existe toujours, et on laisse Date.UTC déborder les mois.
+  const depart = dateLocale(depuis, fuseau);
   for (let d = 0; d < 8; d++) {
-    const candidat = new Date(depuis.getTime() + d * 86_400_000);
-    const { annee, mois, jour, jourSemaine } = dateLocale(candidat, fuseau);
+    const midi = new Date(Date.UTC(depart.annee, depart.mois - 1, depart.jour + d, 12, 0, 0));
+    const { annee, mois, jour, jourSemaine } = dateLocale(midi, 'UTC');
     if (!trigger.days.includes(jourSemaine)) continue;
 
     const instant = instantLocal(annee, mois, jour, heure, minute, fuseau);

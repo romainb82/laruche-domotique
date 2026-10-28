@@ -1,6 +1,7 @@
 import {
   prochaineOccurrence,
   findCap,
+  isActionable,
   type ActionOrigin,
   type Command,
   type HouseConfig,
@@ -154,7 +155,21 @@ export class Planificateur {
   async jouer(sceneId: string, origin: ActionOrigin = 'ui'): Promise<Resultat> {
     const sc = this.config?.scenes?.find((s) => s.id === sceneId);
     if (!sc) throw new Error('Scène inconnue.');
+    return this.executer(sc, origin);
+  }
 
+  /**
+   * Joue une scène telle qu'on la lui donne, enregistrée ou non.
+   *
+   * C'est ce que fait « Essayer » dans l'éditeur : jouer le BROUILLON, pas la
+   * version en base. Sinon l'essai raconte la scène d'hier, et une scène
+   * nouvelle n'est même pas jouable avant d'être enregistrée.
+   */
+  essayer(sc: SceneConfig, origin: ActionOrigin = 'ui'): Promise<Resultat> {
+    return this.executer(sc, origin);
+  }
+
+  private async executer(sc: SceneConfig, origin: ActionOrigin): Promise<Resultat> {
     const refus = this.refusEventuel(sc, origin);
     if (refus) {
       this.journaliser(sc, origin, 0, 0, refus);
@@ -214,8 +229,10 @@ export class Planificateur {
 
     const etat = this.hub.get(c.deviceId);
     const nom = this.config?.devices.find((d) => d.id === c.deviceId)?.label ?? c.deviceId;
-    if (!etat || etat.health === 'offline')
-      return `Condition invérifiable : « ${nom} » ne répond pas.`;
+    // Règle 2 : une valeur périmée ne pilote rien. Un module Zigbee mort
+    // depuis la veille avec « allumé » figé ne doit pas faire partir une scène.
+    if (!isActionable(etat))
+      return `Condition invérifiable : « ${nom} » ${etat?.health === 'stale' ? 'ne donne plus de nouvelles' : 'ne répond pas'}.`;
 
     const allume = findCap(etat, 'switch')?.state === true;
     if (allume === (c.is === 'on')) return null;

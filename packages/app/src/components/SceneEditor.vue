@@ -12,6 +12,7 @@
  * séjour sans réveiller les chambres.
  */
 import { computed, ref } from 'vue';
+import { http } from '@/stores/http';
 import {
   decrireRetard, decrireTrigger, findCap, JOURS_COURTS, JOURS_LONGS,
   EN_SEMAINE, LE_WEEKEND, TOUS_LES_JOURS,
@@ -203,20 +204,26 @@ function ajouterTout() {
 const enEssai = ref(false);
 
 /**
- * Joue la scène pour de vrai. C'est le seul moyen honnête de savoir ce
- * qu'elle fait, et le serveur dit combien d'équipements n'ont pas répondu.
+ * Joue la scène pour de vrai, TELLE QU'ELLE EST À L'ÉCRAN. C'est le seul
+ * moyen honnête de savoir ce qu'elle fait : jouer la version enregistrée
+ * raconterait la scène d'hier, et une scène nouvelle ne serait pas jouable
+ * avant d'être enregistrée.
  */
 async function essayer() {
   enEssai.value = true;
   message.value = '';
   try {
-    const res = await fetch(`/api/scenes/${encodeURIComponent(s.value.id)}/apply`, { method: 'POST' });
-    const body = await res.json();
-    message.value = body.ok
-      ? `Jouée : ${body.total} équipements.`
-      : `${body.echecs} équipement(s) n'ont pas répondu.`;
-  } catch {
-    message.value = 'Serveur injoignable.';
+    const body = await http<{ ok: boolean; total: number; echecs: number; refus?: string | null }>(
+      '/api/scenes/essai',
+      { method: 'POST', body: s.value, delaiMs: 30_000 },
+    );
+    message.value = body.refus
+      ? `Pas jouée : ${body.refus}`
+      : body.ok
+        ? `Jouée : ${body.total} équipements.`
+        : `${body.echecs} équipement(s) n'ont pas répondu.`;
+  } catch (e) {
+    message.value = (e as Error).message;
   } finally {
     enEssai.value = false;
   }

@@ -57,6 +57,20 @@ function versCompte(r: LigneCompte): Compte {
  */
 export class Db {
   private db: Database.Database;
+  /**
+   * Les requêtes du chemin chaud, préparées une fois.
+   *
+   * `prepare()` à chaque appel coûte une analyse SQL ; à une mesure par seconde
+   * et par équipement, et une vérification de session par requête HTTP, c'est
+   * du travail inutile sur un Pi. Les autres requêtes, rares, restent
+   * préparées à la volée : lisibilité d'abord.
+   */
+  private readonly req: {
+    sessionValide: Database.Statement;
+    toucherSession: Database.Statement;
+    recordReading: Database.Statement;
+    logAction: Database.Statement;
+  };
 
   constructor(file: string) {
     mkdirSync(dirname(file), { recursive: true });
@@ -65,6 +79,20 @@ export class Db {
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.migrate();
+    this.req = {
+      sessionValide: this.db.prepare(
+        `SELECT s.id AS sid, s.vue_le AS vue_le, c.* FROM session s
+         JOIN compte c ON c.id = s.compte_id
+         WHERE s.empreinte = ? AND s.expire_le > ? AND c.actif = 1`,
+      ),
+      toucherSession: this.db.prepare('UPDATE session SET vue_le = ?, expire_le = ? WHERE id = ?'),
+      recordReading: this.db.prepare(
+        'INSERT INTO reading (at, device_id, metric, value) VALUES (?, ?, ?, ?)',
+      ),
+      logAction: this.db.prepare(
+        'INSERT INTO action_log (at, device_id, command, origin, outcome) VALUES (?, ?, ?, ?, ?)',
+      ),
+    };
   }
 
   private migrate(): void {
@@ -249,28 +277,35 @@ export class Db {
    * sinon, désactiver quelqu'un ne ferait effet qu'à sa prochaine ouverture de
    * session, c'est-à-dire potentiellement jamais.
    */
-  sessionValide(empreinte: string): { compte: Compte; sessionId: string } | null {
-    const row = this.db
-      .prepare(
-        `SELECT s.id AS sid, c.* FROM session s
-         JOIN compte c ON c.id = s.compte_id
-         WHERE s.empreinte = ? AND s.expire_le > ? AND c.actif = 1`,
-      )
-      .get(empreinte, Date.now()) as (LigneCompte & { sid: string }) | undefined;
-    return row ? { compte: versCompte(row), sessionId: row.sid } : null;
+  sessionValide(
+    empreinte: string,
+  ): { compte: Compte; sessionId: string; vueLe: number } | null {
+    const row = this.req.sessionValide.get(empreinte, Date.now()) as
+      | (LigneCompte & { sid: string; vue_le: number })
+      | undefined;
+    return row ? { compte: versCompte(row), sessionId: row.sid, vueLe: row.vue_le } : null;
   }
 
   /**
-   * Repousse l'expiration à chaque passage.
+   * Repousse l'expiration.
    *
    * Sans ça, la session meurt trente jours après son ouverture même si on s'en
    * sert tous les jours, et on se retrouve déconnecté sans raison apparente.
+   *
+   * Pas plus d'une écriture par heure et par session : une session vit des
+   * jours, la prolonger à chaque requête : jusqu'à une par seconde avec les
+   * caméras : userait la carte du Pi pour rien. Une panne d'écriture ne doit
+   * pas refuser la requête : la session reste valable, elle expirera juste un
+   * peu plus tôt.
    */
-  toucherSession(id: string, dureeJours: number): void {
+  toucherSession(id: string, vueLe: number, dureeJours: number): void {
     const now = Date.now();
-    this.db
-      .prepare('UPDATE session SET vue_le = ?, expire_le = ? WHERE id = ?')
-      .run(now, now + dureeJours * 86_400_000, id);
+    if (now - vueLe < 3_600_000) return;
+    try {
+      this.req.toucherSession.run(now, now + dureeJours * 86_400_000, id);
+    } catch (e) {
+      console.warn(`[base] session non prolongée : ${(e as Error).message}`);
+    }
   }
 
   sessionsDe(compteId: string): Array<{ id: string; appareil: string; creeLe: string; vueLe: string }> {
@@ -313,6 +348,15 @@ export class Db {
 
   // ------------------------------------------------------------ configuration
 
+  /**
+   * La configuration, ou `null` s'il n'y en a pas encore.
+   *
+   * Une ligne illisible (coupure pendant l'écriture, carte abîmée) LÈVE au
+   * lieu de rendre `null` : « rien » et « cassé » ne doivent pas se ressembler,
+   * sinon le serveur remplacerait en silence une maison configurée par la
+   * maison de référence. La ligne est d'abord mise de côté pour qu'on puisse la
+   * récupérer à la main.
+   */
   loadConfig(): HouseConfig | null {
     const row = this.db.prepare('SELECT payload FROM config WHERE id = 1').get() as
       | { payload: string }
@@ -320,9 +364,23 @@ export class Db {
     if (!row) return null;
     try {
       return JSON.parse(row.payload) as HouseConfig;
-    } catch {
-      return null;
+    } catch (e) {
+      this.mettreDeCote(row.payload);
+      throw new Error(
+        `La configuration en base est illisible (${(e as Error).message}). ` +
+          'Elle a été copiée dans la table config_abimee ; le serveur refuse de la remplacer tout seul.',
+      );
     }
+  }
+
+  /** Range une configuration qu'on ne peut pas appliquer, pour la récupérer à la main. */
+  mettreDeCote(payload: string): void {
+    this.db.exec(
+      'CREATE TABLE IF NOT EXISTS config_abimee (at TEXT NOT NULL, payload TEXT NOT NULL)',
+    );
+    this.db
+      .prepare('INSERT INTO config_abimee (at, payload) VALUES (?, ?)')
+      .run(new Date().toISOString(), payload);
   }
 
   saveConfig(config: HouseConfig): void {
@@ -337,19 +395,27 @@ export class Db {
   // ----------------------------------------------------------------- mesures
 
   recordReading(deviceId: string, metric: Metric, value: number): void {
-    this.db
-      .prepare('INSERT INTO reading (at, device_id, metric, value) VALUES (?, ?, ?, ?)')
-      .run(Date.now(), deviceId, metric, value);
+    this.req.recordReading.run(Date.now(), deviceId, metric, value);
   }
 
-  history(deviceId: string, sinceMs: number, limit = 2000): Array<{ at: number; value: number }> {
+  /**
+   * L'historique d'un équipement, échantillonné.
+   *
+   * Un graphique de 24 h n'a pas besoin de 86 400 points, et un plafond de
+   * lignes « les plus récentes » mentirait sur la fenêtre affichée (à une
+   * mesure par seconde, 2 000 lignes font 33 minutes, pas 24 heures). On
+   * découpe donc la fenêtre en `points` seaux et on rend la moyenne de chacun :
+   * toute la fenêtre, à une résolution que l'écran peut montrer.
+   */
+  history(deviceId: string, sinceMs: number, points = 600): Array<{ at: number; value: number }> {
+    const seau = Math.max(1000, Math.ceil((Date.now() - sinceMs) / points));
     return this.db
       .prepare(
-        `SELECT at, value FROM reading
+        `SELECT (at / ?) * ? AS at, AVG(value) AS value FROM reading
          WHERE device_id = ? AND at >= ?
-         ORDER BY at DESC LIMIT ?`,
+         GROUP BY at / ? ORDER BY at`,
       )
-      .all(deviceId, sinceMs, limit) as Array<{ at: number; value: number }>;
+      .all(seau, seau, deviceId, sinceMs, seau) as Array<{ at: number; value: number }>;
   }
 
   // ----------------------------------------------------------------- journal
@@ -360,9 +426,7 @@ export class Db {
     origin: ActionOrigin,
     outcome: ActionLogEntry['outcome'],
   ): void {
-    this.db
-      .prepare('INSERT INTO action_log (at, device_id, command, origin, outcome) VALUES (?, ?, ?, ?, ?)')
-      .run(Date.now(), deviceId, JSON.stringify(command), origin, outcome);
+    this.req.logAction.run(Date.now(), deviceId, JSON.stringify(command), origin, outcome);
   }
 
   /**
@@ -444,12 +508,34 @@ export class Db {
    * Purge. Mesures brutes conservées 90 jours, journal 2 ans : au-delà on
    * agrégera, mais pas avant que le volume le justifie.
    */
-  prune(): void {
+  /**
+   * Purge, par lots.
+   *
+   * Un `DELETE` de plusieurs millions de lignes bloque le processus le temps
+   * qu'il dure : des secondes sur un Pi, pendant lesquelles aucune commande ne
+   * part et les délais de garde expirent en rafale. On efface donc par
+   * tranches de 5 000 lignes en rendant la main entre deux, et on s'arrête
+   * dès qu'une tranche revient incomplète.
+   */
+  async prune(): Promise<void> {
     const ninetyDays = Date.now() - 90 * 86_400_000;
     const twoYears = Date.now() - 730 * 86_400_000;
-    this.db.prepare('DELETE FROM reading WHERE at < ?').run(ninetyDays);
-    this.db.prepare('DELETE FROM action_log WHERE at < ?').run(twoYears);
-    this.db.prepare('DELETE FROM scene_run WHERE at < ?').run(twoYears);
+    const LOT = 5_000;
+    const cibles: Array<[string, number]> = [
+      ['reading', ninetyDays],
+      ['action_log', twoYears],
+      ['scene_run', twoYears],
+    ];
+    for (const [table, avant] of cibles) {
+      const stmt = this.db.prepare(
+        `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE at < ? LIMIT ?)`,
+      );
+      for (;;) {
+        const { changes } = stmt.run(avant, LOT);
+        if (changes < LOT) break;
+        await new Promise((r) => setImmediate(r));
+      }
+    }
   }
 
   close(): void {

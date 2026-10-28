@@ -26,7 +26,25 @@ import Icon from '@/components/Icon.vue';
 
 const house = useHouse();
 const auth = useAuth();
-const { message: annonce } = useAnnonce();
+const { message: annonce, annoncer } = useAnnonce();
+
+/**
+ * Une commande refusée se DIT. Avant, `house.error` était posé par le magasin
+ * et lu par personne : un 403, un équipement périmé ou un serveur muet
+ * laissaient la tuile exactement comme avant, sans un mot.
+ */
+const refus = ref<string | null>(null);
+let effacerRefus: number | null = null;
+watch(
+  () => house.error,
+  (e) => {
+    if (!e) return;
+    refus.value = e;
+    annoncer(e);
+    if (effacerRefus) clearTimeout(effacerRefus);
+    effacerRefus = window.setTimeout(() => { refus.value = null; house.error = null; }, 6000);
+  },
+);
 const route = useRoute();
 const router = useRouter();
 
@@ -43,7 +61,8 @@ const LIENS = computed(() => [
   ...(house.config?.energy?.visible
     ? [{ to: '/energie', libelle: 'Énergie', icone: 'soleil' as const }]
     : []),
-  ...((house.config?.cameras?.length ?? 0)
+  // Les caméras ne sont pas pour un invité : pas de lien vers un écran refusé.
+  ...((house.config?.cameras?.length ?? 0) && auth.peut('habitant')
     ? [{ to: '/securite', libelle: 'Sécurité', icone: 'alerte' as const }]
     : []),
 ]);
@@ -75,10 +94,16 @@ const actif = (to: string) =>
  */
 watch(
   () => auth.connecte,
-  async (ouvert) => {
-    if (!ouvert) return;
-    await house.load();
+  (ouvert) => {
+    if (!ouvert) {
+      house.disconnect();
+      return;
+    }
+    // Le lien d'abord : il se relance tout seul, et son ouverture recharge la
+    // maison. Un `load()` qui échoue au montage (serveur en train de
+    // redémarrer) ne doit pas empêcher le lien de s'ouvrir ensuite.
     house.connect();
+    house.load().catch(() => undefined);
   },
   { immediate: true },
 );
@@ -237,6 +262,14 @@ async function sortir() {
         >
           <Icon name="alerte" :size="17" />
           Serveur injoignable : les états affichés ne sont plus à jour.
+        </p>
+        <p
+          v-else-if="refus"
+          role="alert"
+          class="mb-5 flex items-center gap-2 rounded-xl border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-sm text-warn-deep"
+        >
+          <Icon name="alerte" :size="17" />
+          {{ refus }}
         </p>
 
         <main>

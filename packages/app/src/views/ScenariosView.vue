@@ -15,7 +15,9 @@
  * questions qu'on se pose devant une maison qui bouge toute seule : qu'est-ce
  * qui va partir, et qu'est-ce qui est parti.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
+import { http } from '@/stores/http';
 import { decrireTrigger, findCap, type SceneAction, type SceneConfig } from '@domo/shared';
 import { useHouse } from '@/stores/house';
 import { useAnnonce } from '@/composables/useAnnonce';
@@ -47,8 +49,8 @@ function reprendre() {
 async function relire() {
   try {
     const [n, h] = await Promise.all([
-      fetch('/api/scenes/next').then((r) => r.json()),
-      fetch('/api/scenes/history?limit=6').then((r) => r.json()),
+      http<{ next: typeof prochain.value }>('/api/scenes/next'),
+      http<{ runs: typeof passes.value }>('/api/scenes/history?limit=6'),
     ]);
     prochain.value = n.next ?? null;
     passes.value = h.runs ?? [];
@@ -70,6 +72,25 @@ const scene = computed(() => (draft.value ?? []).find((s) => s.id === choisi.val
 const modifie = computed(
   () => JSON.stringify(draft.value ?? []) !== JSON.stringify(house.config?.scenes ?? []),
 );
+
+/**
+ * Un brouillon non enregistré ne se perd pas sur un clic de menu.
+ *
+ * Deux sorties : la navigation interne (garde du routeur) et la fermeture de
+ * l'onglet (`beforeunload`). Dans les deux cas la question est posée, et c'est
+ * la personne qui tranche.
+ */
+onBeforeRouteLeave(() => {
+  if (!modifie.value) return true;
+  return window.confirm('Des modifications ne sont pas enregistrées. Quitter quand même ?');
+});
+function avantFermeture(e: BeforeUnloadEvent) {
+  if (!modifie.value) return;
+  e.preventDefault();
+}
+onMounted(() => window.addEventListener('beforeunload', avantFermeture));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', avantFermeture));
+
 
 // ------------------------------------------------------------------ résumé
 
@@ -138,9 +159,10 @@ function conditionLisible(sc: SceneConfig): string | null {
 async function lancer(sc: SceneConfig) {
   lance.value[sc.id] = 'en-cours';
   try {
-    const r = await (
-      await fetch(`/api/scenes/${encodeURIComponent(sc.id)}/apply`, { method: 'POST' })
-    ).json();
+    const r = await http<{ ok: boolean; total: number; echecs: number; refus?: string | null }>(
+      `/api/scenes/${encodeURIComponent(sc.id)}/apply`,
+      { method: 'POST', delaiMs: 30_000 },
+    );
     lance.value[sc.id] = 'fait';
     annoncer(
       r.ok
@@ -148,9 +170,9 @@ async function lancer(sc: SceneConfig) {
         : (r.refus ?? `${r.echecs} équipement(s) n'ont pas répondu.`),
     );
     setTimeout(() => { delete lance.value[sc.id]; }, 2500);
-  } catch {
+  } catch (e) {
     delete lance.value[sc.id];
-    annoncer('Serveur injoignable.');
+    annoncer((e as Error).message);
   }
   await relire();
 }
@@ -184,16 +206,7 @@ async function enregistrer() {
   saving.value = true;
   message.value = null;
   try {
-    const res = await fetch('/api/scenes', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(draft.value),
-    });
-    const corps = await res.json();
-    if (!res.ok)
-      throw new Error(
-        (corps.issues ?? []).map((i: { message: string }) => i.message).join(' ') || 'Refusé.',
-      );
+    await http('/api/scenes', { method: 'PUT', body: draft.value, delaiMs: 30_000 });
     await house.load();
     reprendre();
     await relire();

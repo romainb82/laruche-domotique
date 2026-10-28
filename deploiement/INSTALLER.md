@@ -107,7 +107,7 @@ Trois lignes doivent apparaître au démarrage :
 Puis depuis n'importe quel appareil de la maison :
 
 ```bash
-curl -s http://ruche.local:3001/api/state | head -c 200
+curl -s http://ruche.local:3001/api/auth/etat
 ```
 
 Et sur le téléphone : ouvrir **http://ruche.local:3001** dans Safari, puis
@@ -155,15 +155,20 @@ l'application iOS construit l'adresse du serveur à partir de ce champ.
 
 ---
 
-## Ce qui n'est pas réglé
+## Comptes et accès
 
-**Le serveur n'a aucune authentification.** Toute machine du réseau local qui
-connaît son adresse peut piloter la maison et demander les images des caméras.
-L'unité est durcie : utilisateur dédié, disque en lecture seule hors
-`/var/lib/ruche`, familles de sockets restreintes : ce qui limite les dégâts
-d'une faille dans une dépendance, mais ne remplace pas une authentification.
+Le serveur exige un compte : au premier lancement, l'interface demande de
+créer l'administrateur. Trois rôles : l'administrateur règle tout, l'habitant
+pilote et voit les caméras, l'invité allume la lumière et ouvre les volets.
+L'unité est durcie en plus : utilisateur dédié, disque en lecture seule hors
+`/var/lib/ruche`, familles de sockets restreintes.
 
-C'est le chantier à ouvrir avant d'installer des caméras d'intérieur, et
-**avant toute exposition hors du réseau local**. Si tu veux y accéder de
-l'extérieur, passe par un tunnel privé (Tailscale, WireGuard) et jamais par
-une redirection de port sur la box.
+Deux précautions :
+
+- **Ne lance jamais `npm run verifier` sur cette machine.** Les scripts de
+  vérification réécrivent la configuration et, sur une base vierge, créent
+  un administrateur au mot de passe public. Ils refusent de tourner contre
+  une maison configurée, mais pas contre une base encore vide.
+- **Pas d'exposition hors du réseau local** sans tunnel privé (Tailscale,
+  WireGuard) : jamais de redirection de port sur la box. Derrière un tunnel,
+  pense à `HABITANTS=off` pour ne plus lister les prénoms avant connexion.

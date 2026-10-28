@@ -187,10 +187,9 @@ export function pinHomeKitValide(pin: string): boolean {
  * 3. **Éteinte par défaut.** Une caméra qu'on a oublié d'éteindre filme quand
  *    même.
  *
- * Avertissement qui ne peut pas être réglé ici : le serveur n'a AUCUNE
- * authentification. Tout appareil du réseau local qui connaît son adresse peut
- * demander ces images. Pour des lampes c'est sans conséquence, pour des
- * caméras d'intérieur, non.
+ * Les images ne sont servies qu'aux comptes connectés de rang « habitant » ou
+ * plus : un invité ne les voit pas. Les identifiants de la caméra, eux, ne
+ * sont rendus qu'à l'administrateur.
  */
 export interface CameraConfig {
   id: string;
@@ -486,7 +485,7 @@ export function validateConfig(cfg: HouseConfig): ConfigIssue[] {
   if (allumees)
     issues.push({
       path: 'cameras',
-      message: `${allumees} caméra(s) active(s) : le serveur n’a aucune authentification, toute machine du réseau local peut voir ces images.`,
+      message: `${allumees} caméra(s) active(s) : leurs images sont visibles par tout compte « habitant » ou « administrateur ».`,
     });
 
   if (cfg.energy?.meterDeviceId && !deviceIds.has(cfg.energy.meterDeviceId))
@@ -515,7 +514,7 @@ export function isBlocking(issue: ConfigIssue): boolean {
   if (issue.message.includes('encore celui d’usine')) return false;
   // Les caméras actives sont un AVERTISSEMENT, pas une erreur : c'est un
   // risque qu'on a le droit d'accepter chez soi, à condition de le savoir.
-  if (issue.message.includes('aucune authentification')) return false;
+  if (issue.message.includes('caméra(s) active(s)')) return false;
   return true;
 }
 

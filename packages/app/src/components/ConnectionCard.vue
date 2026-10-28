@@ -7,6 +7,7 @@
  * ce qui s'est passé, et alors seulement on enregistre.
  */
 import { computed, ref } from 'vue';
+import { http } from '@/stores/http';
 import {
   CONNECTION_LABELS, MODBUS_ADDRESS_HINT, MODBUS_TABLE_LABELS,
   type Connection, type ConnectionStatus,
@@ -31,12 +32,11 @@ async function tester() {
   enCours.value = true;
   essai.value = { etat: 'attente', texte: 'Connexion en cours…' };
   try {
-    const res = await fetch('/api/connections/test', {
+    const body = await http<{ ok: boolean; ms: number; error?: string }>('/api/connections/test', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(c.value),
+      body: c.value,
+      delaiMs: 20_000,
     });
-    const body = await res.json();
     essai.value = body.ok
       ? { etat: 'ok', texte: `Répond en ${body.ms} ms.` }
       : { etat: 'ko', texte: body.error ?? 'Échec.' };

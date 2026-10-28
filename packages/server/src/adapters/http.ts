@@ -125,7 +125,7 @@ export class HttpAdapter extends BaseAdapter {
           if (brut === undefined) continue;
           const valeur = read.pipeline.length ? applyPipeline(brut, read.pipeline) : brut;
           if (valeur === undefined) continue;
-          const e = parEquipement.get(device.id) ?? { device, caps: [] };
+          const e = parEquipement.get(device.id) ?? { device, caps: this.ctx.courant?.(device.id) ?? [] };
           e.caps = poser(e.caps, device, read.into as CapField, valeur);
           parEquipement.set(device.id, e);
         }

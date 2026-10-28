@@ -7,13 +7,14 @@
  * MQTT du module, on bascule le driver. C'est tout.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { http } from '@/stores/http';
 import {
   DEVICE_TYPE_LABELS, METRIC_LABELS, ZONE_KIND_LABELS,
   type Candidate, type Connection, type ConnectionStatus, type DeviceConfig,
   type DeviceType, type HouseConfig, type Metric, type Preset,
   type ZoneConfig, type ZoneKind,
 } from '@domo/shared';
-import { useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { useHouse } from '@/stores/house';
 import { ROLE_LABELS } from '@domo/shared';
 import { useAuth } from '@/stores/auth';
@@ -54,11 +55,17 @@ type Tab = 'maison' | 'zones' | 'equipements' | 'materiel' | 'cameras' | 'compte
  */
 const ONGLETS = computed<{ id: Tab; libelle: string }[]>(() => [
   { id: 'maison', libelle: 'Maison' },
-  { id: 'zones', libelle: 'Zones' },
-  { id: 'equipements', libelle: 'Équipements' },
-  { id: 'materiel', libelle: 'Matériel' },
-  { id: 'cameras', libelle: 'Caméras' },
-  ...(auth.peut('admin') ? [{ id: 'comptes' as Tab, libelle: 'Comptes' }] : []),
+  // Tout ce qui écrit la configuration demande `admin` côté serveur : on ne
+  // montre pas à un habitant des formulaires qui finiraient en 403.
+  ...(auth.peut('admin')
+    ? [
+        { id: 'zones' as Tab, libelle: 'Zones' },
+        { id: 'equipements' as Tab, libelle: 'Équipements' },
+        { id: 'materiel' as Tab, libelle: 'Matériel' },
+        { id: 'cameras' as Tab, libelle: 'Caméras' },
+        { id: 'comptes' as Tab, libelle: 'Comptes' },
+      ]
+    : []),
 ]);
 const tab = ref<Tab>('maison');
 
@@ -110,12 +117,10 @@ async function testerCamera(id: string) {
   if (!cam) return;
   essais.value[id] = { etat: 'attente', texte: 'Connexion en cours…' };
   try {
-    const res = await fetch('/api/cameras/test', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(cam),
-    });
-    const corps = await res.json();
+    const corps = await http<{ ok: boolean; ms: number; octets: number; type: string; error?: string }>(
+      '/api/cameras/test',
+      { method: 'POST', body: cam, delaiMs: 20_000 },
+    );
     essais.value[id] = corps.ok
       ? { etat: 'ok', texte: `Image reçue en ${corps.ms} ms : ${Math.round(corps.octets / 1024)} ko, ${corps.type}.` }
       : { etat: 'ko', texte: corps.error ?? 'Échec.' };
@@ -151,8 +156,8 @@ const departsPasses = ref<
 async function relireScenes() {
   try {
     const [n, h] = await Promise.all([
-      fetch('/api/scenes/next').then((r) => r.json()),
-      fetch('/api/scenes/history?limit=8').then((r) => r.json()),
+      http<{ next: typeof prochainDepart.value }>('/api/scenes/next'),
+      http<{ runs: typeof departsPasses.value }>('/api/scenes/history?limit=8'),
     ]);
     prochainDepart.value = n.next ?? null;
     departsPasses.value = h.runs ?? [];
@@ -173,7 +178,7 @@ function quand(iso: string): string {
 
 async function relirePont() {
   try {
-    pont.value = await (await fetch('/api/homekit')).json();
+    pont.value = await http('/api/homekit');
   } catch {
     pont.value = null;
   }
@@ -190,6 +195,24 @@ watch(() => house.config, (c) => { if (c && !draft.value) draft.value = copie(c)
 const dirty = computed(
   () => !!draft.value && JSON.stringify(draft.value) !== JSON.stringify(house.config),
 );
+
+/**
+ * Un brouillon non enregistré ne se perd pas sur un clic de menu.
+ *
+ * Deux sorties : la navigation interne (garde du routeur) et la fermeture de
+ * l'onglet (`beforeunload`). Dans les deux cas la question est posée, et c'est
+ * la personne qui tranche.
+ */
+onBeforeRouteLeave(() => {
+  if (!dirty.value) return true;
+  return window.confirm('Des modifications ne sont pas enregistrées. Quitter quand même ?');
+});
+function avantFermeture(e: BeforeUnloadEvent) {
+  if (!dirty.value) return;
+  e.preventDefault();
+}
+onMounted(() => window.addEventListener('beforeunload', avantFermeture));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', avantFermeture));
 
 async function save() {
   if (!draft.value) return;
@@ -256,8 +279,43 @@ const filteredDevices = computed(() => {
   const list = zoneFilter.value === '*'
     ? draft.value.devices
     : draft.value.devices.filter((d) => d.zoneId === zoneFilter.value);
-  return [...list].sort((a, b) => a.id.localeCompare(b.id));
+  // L'ordre ne dépend PAS de l'identifiant : taper dedans déplacerait la carte.
+  return [...list].sort((a, b) => a.zoneId.localeCompare(b.zoneId) || a.order - b.order);
 });
+
+/**
+ * Une clé stable par carte, indépendante de l'identifiant qu'on édite.
+ * Posée une fois par objet et conservée tant que le brouillon vit.
+ */
+const cles = new WeakMap<object, number>();
+let prochaineCle = 1;
+function cle(o: object): number {
+  let k = cles.get(o);
+  if (!k) {
+    k = prochaineCle++;
+    cles.set(o, k);
+  }
+  return k;
+}
+
+/**
+ * Renommer une zone renomme aussi ce qui pointe dessus : équipements, caméras
+ * et filtre courant. Sans ça, changer « z03 » en « salon » laissait quinze
+ * équipements orphelins que la validation refusait ensuite.
+ */
+function renommerZone(z: ZoneConfig, nouveau: string) {
+  const id = nouveau.trim();
+  if (!draft.value || !id || id === z.id) return;
+  if (draft.value.zones.some((autre) => autre !== z && autre.id === id)) {
+    message.value = { kind: 'err', text: `L’identifiant « ${id} » est déjà pris.` };
+    return;
+  }
+  const ancien = z.id;
+  z.id = id;
+  for (const d of draft.value.devices) if (d.zoneId === ancien) d.zoneId = id;
+  for (const c of draft.value.cameras ?? []) if (c.zoneId === ancien) c.zoneId = id;
+  if (zoneFilter.value === ancien) zoneFilter.value = id;
+}
 
 const unbound = computed(() => draft.value?.devices.filter((d) => !d.binding).length ?? 0);
 
@@ -296,14 +354,14 @@ let veille: number | null = null;
  */
 async function rafraichirDecouverte() {
   try {
-    const r = await fetch('/api/discovery');
-    candidats.value = (await r.json()).candidates ?? [];
+    candidats.value = (await http<{ candidates: typeof candidats.value }>('/api/discovery')).candidates ?? [];
   } catch { /* le bandeau hors ligne le dit déjà */ }
 }
 
 onMounted(async () => {
-  const r = await fetch('/api/presets').catch(() => null);
-  if (r?.ok) presets.value = (await r.json()).presets ?? [];
+  presets.value = await http<{ presets: typeof presets.value }>('/api/presets')
+    .then((r) => r.presets ?? [])
+    .catch(() => []);
   await rafraichirDecouverte();
   veille = window.setInterval(rafraichirDecouverte, 4000);
 });
@@ -354,7 +412,7 @@ function retirerConnexion(id: string) {
 }
 
 async function viderDecouverte() {
-  await fetch('/api/discovery', { method: 'DELETE' });
+  await http('/api/discovery', { method: 'DELETE' }).catch(() => undefined);
   candidats.value = [];
 }
 
@@ -610,7 +668,10 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
       </div>
 
       <div class="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-      <div v-for="z in draft.zones" :key="z.id" class="card space-y-2">
+      <!-- La clé est la POSITION, pas l'identifiant : l'identifiant est
+           éditable juste en dessous, et une clé qui change à chaque frappe
+           remonte le nœud et fait perdre le focus après un caractère. -->
+      <div v-for="(z, zi) in draft.zones" :key="zi" class="card space-y-2">
         <div class="flex items-center gap-2">
           <input v-model="z.label" class="input flex-1 font-medium" aria-label="Nom de la zone" />
           <button
@@ -621,7 +682,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <div class="grid grid-cols-2 gap-2">
           <label class="field">
             <span>Identifiant</span>
-            <input v-model="z.id" class="input font-mono text-xs" />
+            <input :value="z.id" class="input font-mono text-xs" @change="renommerZone(z, ($event.target as HTMLInputElement).value)" />
           </label>
           <label class="field">
             <span>Nature</span>
@@ -659,7 +720,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
       </p>
 
       <div class="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-      <div v-for="d in filteredDevices" :key="d.id" class="card space-y-2">
+      <div v-for="d in filteredDevices" :key="cle(d)" class="card space-y-2">
         <div class="flex items-center gap-2">
           <input v-model="d.label" class="input flex-1 font-medium" aria-label="Nom de l'équipement" />
           <span
@@ -721,10 +782,10 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <button class="btn" @click="ajouterCamera">+ Ajouter</button>
       </div>
 
-      <p class="rounded-xl border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-xs text-warn-deep">
-        Le serveur n'a aucune authentification. Allumer une caméra rend ses
-        images accessibles à toute machine du réseau local qui connaît son
-        adresse. C'est acceptable chez soi, à condition de le savoir.
+      <p class="rounded-xl border border-line bg-raised px-3.5 py-2.5 text-xs text-soft">
+        Les images ne sont servies qu'aux comptes connectés de rang
+        « habitant » ou plus : un invité ne les voit pas. Les identifiants de la
+        caméra restent sur le serveur.
       </p>
 
       <div v-if="!(draft.cameras ?? []).length" class="rounded-xl border border-dashed border-line px-4 py-10 text-center text-sm text-soft">
@@ -832,7 +893,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <div class="card">
           <div class="flex items-center justify-between">
             <h2 class="card-title">Sur le réseau</h2>
-            <button v-if="candidats.length" class="press text-xs font-medium text-soft" @click="viderDecouverte">
+            <button v-if="candidats.length" class="press min-h-[32px] rounded-lg px-2 text-xs font-medium text-soft" @click="viderDecouverte">
               Vider
             </button>
           </div>

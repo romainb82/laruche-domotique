@@ -256,7 +256,7 @@ export class ModbusAdapter extends BaseAdapter {
         const valeur = l.read.pipeline.length ? applyPipeline(brut, l.read.pipeline) : brut;
         if (valeur === undefined) continue;
 
-        const e = parEquipement.get(l.device.id) ?? { device: l.device, caps: [] };
+        const e = parEquipement.get(l.device.id) ?? { device: l.device, caps: this.ctx.courant?.(l.device.id) ?? [] };
         e.caps = poser(e.caps, l.device, l.read.into as CapField, valeur);
         parEquipement.set(l.device.id, e);
       }

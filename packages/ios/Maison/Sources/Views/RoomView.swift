@@ -31,6 +31,19 @@ struct RoomView: View {
         .background(Theme.ground)
         .navigationTitle(zone?.label ?? "Pièce")
         .navigationBarTitleDisplayMode(.inline)
+        // La première nouvelle du matériel efface l'aperçu : à partir de là,
+        // l'arc montre ce que la maison fait vraiment.
+        .onChange(of: valeurReelle) { _, _ in apercu = nil }
+    }
+
+    /// Ce que le cadran montrerait sans aperçu : sert à savoir quand le matériel a parlé.
+    private var valeurReelle: Double {
+        switch mode {
+        case .climat: chauffage.first.flatMap { store.state($0.id)?.climate?.setpoint } ?? 0
+        case .lumiere: niveauLumiere
+        case .volets: ouvertureVolets
+        case nil: 0
+        }
     }
 
     // MARK: En-tête
@@ -153,10 +166,14 @@ struct RoomView: View {
     private func arc(_ c: Cadran) -> some View {
         RadialDial(valeur: c.valeur, min: c.min, max: c.max, texte: c.texte,
                    unite: c.unite, legende: c.legende, pas: c.pas,
-                   teinte: c.teinte, desactive: c.desactive) { v in
+                   teinte: c.teinte, desactive: c.desactive,
+                   onApercu: { v in apercu = v }) { v in
             apercu = v
             regler(v)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { apercu = nil }
+            // L'aperçu n'est pas une mise à jour optimiste : il meurt dès que
+            // le matériel parle (voir `onChange` plus bas), ou au plus tard
+            // après trois secondes.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { apercu = nil }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)

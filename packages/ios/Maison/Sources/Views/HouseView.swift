@@ -42,6 +42,26 @@ struct HouseView: View {
                         "\(store.config?.house.name ?? "Maison"), \(store.live ? "connectée" : "hors ligne")"
                     )
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if let compte = store.compte {
+                            Text("\(compte.nom) · \(compte.role.label)")
+                        }
+                        Button(role: .destructive) {
+                            Task { await store.deconnexion() }
+                        } label: {
+                            Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                    } label: {
+                        Text(store.compte.map { String($0.nom.prefix(1)).uppercased() } ?? "?")
+                            .police(13, .semibold)
+                            .frame(width: 30, height: 30)
+                            .background(Theme.glow.opacity(0.15))
+                            .foregroundStyle(Theme.glowInk)
+                            .clipShape(Circle())
+                    }
+                    .accessibilityLabel("Compte \(store.compte?.nom ?? "")")
+                }
             }
             .refreshable { await store.charger() }
             .onChange(of: store.live) { _, live in

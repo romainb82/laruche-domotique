@@ -83,8 +83,12 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(request)
         .then((r) => {
-          const copie = r.clone();
-          caches.open(COQUILLE).then((c) => c.put('/', copie));
+          // Seule une VRAIE coquille se garde : un 502 de tunnel mis en cache
+          // afficherait une page d'erreur hors ligne pour toujours.
+          if (r.ok) {
+            const copie = r.clone();
+            caches.open(COQUILLE).then((c) => c.put('/', copie));
+          }
           return r;
         })
         .catch(async () => {

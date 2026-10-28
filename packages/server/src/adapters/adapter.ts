@@ -61,6 +61,15 @@ export interface AdapterContext {
   emit: PatchHandler;
   /** Journalise sans faire tomber le serveur. */
   warn: (message: string) => void;
+  /**
+   * Les capacités COURANTES d'un équipement, telles que le cerveau les tient.
+   *
+   * Un adaptateur pose ce qu'il vient d'apprendre PAR-DESSUS cet état, et non
+   * sur du vide : un volet qui publie `state` et `current_pos` sur deux topics
+   * distincts ne doit pas voir sa position retomber à zéro à chaque message
+   * d'état. Absent pour les canaux jetables (essai de connexion).
+   */
+  courant?: (deviceId: string) => Capability[];
 }
 
 /** Base commune : gestion du statut et des candidats, identique partout. */

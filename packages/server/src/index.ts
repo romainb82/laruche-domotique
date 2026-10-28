@@ -9,6 +9,7 @@ import {
   isBlocking,
   migrateConfig,
   validateConfig,
+  verifierForme,
   type Command,
   type DeviceConfig,
   PRESETS,
@@ -28,6 +29,7 @@ import { StateHub } from './state.js';
 import { MqttAdapter } from './adapters/mqtt.js';
 import { HttpAdapter } from './adapters/http.js';
 import { ModbusAdapter } from './adapters/modbus.js';
+import { HomeAssistantAdapter } from './adapters/homeassistant.js';
 import type { Adapter } from './adapters/adapter.js';
 import { PontHomeKit } from './homekit.js';
 import { Planificateur } from './planificateur.js';
@@ -66,25 +68,59 @@ const db = new Db(DB_FILE);
 
 // Premier démarrage : on sème la maison lue sur le plan, pour que
 // l'application ne s'ouvre jamais sur un écran vide.
-let config = db.loadConfig();
-if (!config) {
-  config = buildSeedConfig();
-  db.saveConfig(config);
-  console.log('[config] première initialisation : maison de référence chargée');
-} else {
-  // Les bases écrites avant le bus d'adaptateurs sont converties au vol.
-  const migre = migrateConfig(config);
-  if (migre !== config) {
-    config = migre;
+/**
+ * Une configuration qu'on ne peut pas lire ou qui ne tient pas debout ne doit
+ * pas empêcher la maison de marcher : on démarre sur la maison de référence
+ * SANS l'écrire en base, en le disant très fort. La configuration abîmée
+ * reste en base pour être récupérée à la main.
+ */
+let configDeSecours = false;
+let config: HouseConfig;
+try {
+  const lue = db.loadConfig();
+  if (!lue) {
+    config = buildSeedConfig();
     db.saveConfig(config);
-    console.log('[config] migrée vers les connexions multiples');
+    console.log('[config] première initialisation : maison de référence chargée');
+  } else {
+    // Les bases écrites avant le bus d'adaptateurs sont converties au vol.
+    const migre = migrateConfig(lue);
+    const defaut = verifierForme(migre);
+    if (defaut) {
+      db.mettreDeCote(JSON.stringify(lue));
+      throw new Error(`forme invalide (${defaut}) ; copie rangée dans la table config_abimee`);
+    }
+    config = migre;
+    if (migre !== lue) {
+      db.saveConfig(config);
+      console.log('[config] migrée vers les connexions multiples');
+    }
   }
+} catch (e) {
+  console.error(`[config] ${(e as Error).message}`);
+  console.error('[config] démarrage sur la maison de référence, SANS l’enregistrer : la base est conservée telle quelle.');
+  config = buildSeedConfig();
+  configDeSecours = true;
 }
 
 const hub = new StateHub(config, db);
 hub.on('warn', (m: string) => console.warn(`[canal] ${m}`));
 
-await hub.start();
+try {
+  await hub.start();
+} catch (e) {
+  // Un canal qui fait lever le démarrage (adresse malformée, réglage absent)
+  // ne doit pas laisser la maison sans pilotage : on coupe les canaux et on
+  // repart en simulé, sans rien écrire. Mieux vaut une maison simulée qu'un
+  // serveur qui redémarre en boucle.
+  console.error(`[canal] démarrage impossible : ${(e as Error).message}`);
+  console.error('[canal] les canaux sont coupés pour ce démarrage ; corrigez le raccordement fautif dans Paramétrage.');
+  config = {
+    ...config,
+    connections: config.connections.map((c) => (c.kind === 'sim' ? c : { ...c, enabled: false })),
+  };
+  await hub.reload(config);
+}
 for (const c of hub.connections()) {
   const marque = c.state === 'connected' ? '✓' : c.state === 'disabled' ? '·' : '✗';
   console.log(`[canal] ${marque} ${c.label} : ${c.devices} équipements${c.detail ? ` (${c.detail})` : ''}`);
@@ -132,6 +168,21 @@ try {
   // Un pont qui refuse de s'ouvrir ne doit pas empêcher la maison de marcher.
   console.warn(`[homekit] ${(e as Error).message}`);
 }
+
+/**
+ * Le dernier filet.
+ *
+ * Tout ce qui précède cloisonne ses erreurs ; s'il en reste une qui échappe,
+ * on la journalise au lieu de laisser Node tuer le processus. Un serveur qui
+ * meurt sur une promesse oubliée, c'est une maison sans pilotage, et systemd
+ * qui le relance pour le voir remourir sur le même message.
+ */
+process.on('unhandledRejection', (raison) => {
+  console.error(`[serveur] promesse rejetée sans suite : ${(raison as Error)?.message ?? String(raison)}`);
+});
+process.on('uncaughtException', (e) => {
+  console.error(`[serveur] exception non rattrapée : ${e.stack ?? e.message}`);
+});
 
 const app = Fastify({ logger: false });
 await app.register(websocket);
@@ -245,14 +296,54 @@ app.addHook('onRequest', async (req, reply) => {
 
   req.compte = trouve.compte;
   req.sessionId = trouve.sessionId;
-  db.toucherSession(trouve.sessionId, SESSION_JOURS);
+  db.toucherSession(trouve.sessionId, trouve.vueLe, SESSION_JOURS);
+
+  // Le rang requis se décide ICI, pour toutes les routes à la fois, et non
+  // route par route : une route qu'on oublie de protéger est la façon
+  // habituelle dont un modèle de rôles finit par ne rien protéger.
+  const minimum = rangRequis(req.method, chemin);
+  if (minimum && !exige(req, reply, minimum)) return reply;
 });
+
+/**
+ * Le rang que demande chaque route. Tout ce qui n'est pas listé est ouvert à
+ * tout compte connecté : piloter la maison, lire son état, voir les scènes.
+ *
+ * Les trois promesses de `ROLE_DESCRIPTIONS` se traduisent ainsi :
+ *   . `invite` ne voit pas les caméras : tout `/api/cameras` demande `habitant` ;
+ *   . `habitant` ne touche ni au matériel ni aux comptes : toute écriture de
+ *     configuration, de scène ou de connexion demande `admin` ;
+ *   . l'invité « allume les lumières et ouvre les volets » : le thermostat et
+ *     les scènes lui sont fermés, ce que vérifient les routes de commande.
+ */
+function rangRequis(methode: string, chemin: string): Role | null {
+  const ecriture = methode !== 'GET' && methode !== 'HEAD';
+  if (chemin.startsWith('/api/comptes')) return 'admin';
+  if (chemin.startsWith('/api/config')) return ecriture ? 'admin' : null;
+  if (chemin.startsWith('/api/connections')) return ecriture ? 'admin' : null;
+  if (chemin.startsWith('/api/discovery')) return 'admin';
+  if (chemin === '/api/homekit') return 'admin';
+  if (chemin === '/api/presets') return 'admin';
+  if (chemin === '/api/scenes' || chemin === '/api/scenes/reset') return ecriture ? 'admin' : null;
+  if (chemin.startsWith('/api/cameras')) return chemin.endsWith('/test') ? 'admin' : 'habitant';
+  return null;
+}
 
 /** Refuse la requête si le compte n'a pas le rang demandé. */
 function exige(req: FastifyRequest, reply: FastifyReply, minimum: Role): boolean {
   if (req.compte && auMoins(req.compte.role, minimum)) return true;
   reply.status(403).send({ error: "Votre compte n'a pas les droits pour cette action." });
   return false;
+}
+
+/** Ce qu'un invité a le droit de piloter : la lumière et les volets, rien d'autre. */
+const TYPES_INVITE = new Set<DeviceConfig['type']>(['light', 'dimmer', 'cover']);
+
+/** Vrai si le compte peut envoyer une commande à cet équipement. */
+function peutPiloter(compte: Compte, deviceId: string): boolean {
+  if (auMoins(compte.role, 'habitant')) return true;
+  const device = config!.devices.find((d) => d.id === deviceId);
+  return !!device && TYPES_INVITE.has(device.type);
 }
 
 /**
@@ -604,6 +695,8 @@ app.get('/api/state', async () => ({
 app.post<{ Params: { id: string }; Body: Command }>(
   '/api/devices/:id/command',
   async (req, reply) => {
+    if (!peutPiloter(req.compte!, req.params.id))
+      return reply.status(403).send({ ok: false, error: 'Un invité ne pilote que la lumière et les volets.' });
     try {
       await hub.command(req.params.id, req.body, 'ui');
       return { ok: true, state: hub.get(req.params.id) };
@@ -619,6 +712,8 @@ app.post<{ Body: { deviceIds: string[]; command: Command } }>(
   async (req, reply) => {
     const { deviceIds, command } = req.body;
     if (!Array.isArray(deviceIds)) return reply.status(400).send({ ok: false, error: 'deviceIds requis' });
+    if (!deviceIds.every((id) => typeof id === 'string' && peutPiloter(req.compte!, id)))
+      return reply.status(403).send({ ok: false, error: 'Un invité ne pilote que la lumière et les volets.' });
 
     const results = await Promise.allSettled(
       deviceIds.map((id) => hub.command(id, command, 'ui')),
@@ -632,7 +727,7 @@ app.get<{ Querystring: { device?: string; hours?: string } }>('/api/history', as
   const { device, hours } = req.query;
   if (!device) return reply.status(400).send({ error: 'paramètre device requis' });
   const since = Date.now() - Number(hours ?? 24) * 3_600_000;
-  return { device, points: db.history(device, since).reverse() };
+  return { device, points: db.history(device, since) };
 });
 
 app.get('/api/journal', async () => ({ entries: db.recentActions(120) }));
@@ -647,12 +742,31 @@ app.get('/api/journal', async () => ({ entries: db.recentActions(120) }));
  * « bonne nuit » alors que la moitié des volets n'a pas bougé.
  */
 app.post<{ Params: { id: string } }>('/api/scenes/:id/apply', async (req, reply) => {
+  // Une scène touche au chauffage et à toute la maison : pas pour un invité.
+  if (!exige(req, reply, 'habitant')) return reply;
   if (!config!.scenes?.some((s) => s.id === req.params.id))
     return reply.status(404).send({ ok: false, error: 'Scène inconnue.' });
   // Jouée à la main, mais par le même chemin qu'un départ programmé : elle
   // hérite ainsi des conditions, des retards et du journal. Deux chemins
   // d'exécution finiraient par diverger.
   return planificateur.jouer(req.params.id, 'ui');
+});
+
+/**
+ * Essai d'une scène NON enregistrée : l'éditeur envoie son brouillon.
+ *
+ * Même chemin qu'un départ programmé (conditions, retards, journal), mais la
+ * scène vient du corps de la requête. Réservé à l'administrateur, comme
+ * l'écriture des scènes : c'est bien de l'édition.
+ */
+app.post<{ Body: SceneConfig }>('/api/scenes/essai', async (req, reply) => {
+  if (!exige(req, reply, 'admin')) return reply;
+  const forme = verifierForme({ ...config!, scenes: [req.body] });
+  if (forme) return reply.status(400).send({ ok: false, error: forme });
+  const inconnus = req.body.actions.filter((a) => !config!.devices.some((d) => d.id === a.deviceId));
+  if (inconnus.length)
+    return reply.status(400).send({ ok: false, error: `Équipement inconnu : ${inconnus[0]!.deviceId}` });
+  return planificateur.essayer(req.body, 'ui');
 });
 
 /** Les départs passés, et pourquoi certains n'ont pas eu lieu. */
@@ -719,8 +833,14 @@ app.post<{ Body: Connection }>('/api/connections/test', async (req, reply) => {
   try {
     const adapter = fabriquerPourTest(c);
     if (!adapter) return reply.status(400).send({ ok: false, error: 'Type de connexion inconnu.' });
-    await adapter.start();
-    await adapter.stop();
+    try {
+      await adapter.start();
+    } finally {
+      // Même si l'ouverture a échoué : un client MQTT qui n'a pas trouvé son
+      // broker continue d'essayer toutes les cinq secondes tant qu'on ne
+      // l'arrête pas, et chaque clic sur « Tester » en laissait un de plus.
+      await adapter.stop().catch(() => undefined);
+    }
     return { ok: true, ms: Date.now() - debut };
   } catch (e) {
     return reply.status(200).send({ ok: false, error: (e as Error).message, ms: Date.now() - debut });
@@ -864,7 +984,30 @@ app.get('/api/presets', async () => ({ presets: PRESETS }));
 
 // -------------------------------------------------------------- paramétrage
 
-app.get('/api/config', async () => config);
+/**
+ * La configuration, à la mesure du compte qui la demande.
+ *
+ * Un administrateur la reçoit entière : c'est lui qui édite les
+ * raccordements. Tout autre compte reçoit la même maison SANS ses secrets :
+ * mot de passe du broker, jeton Home Assistant, adresses et identifiants des
+ * caméras. L'interface n'en a pas besoin pour piloter, et un habitant qui
+ * connaît le mot de passe du broker peut parler aux modules sans passer par
+ * le serveur, donc sans journal.
+ */
+app.get('/api/config', async (req) =>
+  auMoins(req.compte!.role, 'admin') ? config : expurgee(config!),
+);
+
+function expurgee(cfg: HouseConfig): HouseConfig {
+  return {
+    ...cfg,
+    connections: cfg.connections.map((c) => ({
+      ...c,
+      settings: { ...c.settings, password: undefined, token: undefined, headers: undefined },
+    })),
+    cameras: (cfg.cameras ?? []).map((c) => ({ ...c, snapshotUrl: '', username: '', password: '' })),
+  };
+}
 
 app.put<{ Body: HouseConfig }>('/api/config', async (req, reply) => {
   return applyConfig(req.body, reply);
@@ -926,22 +1069,71 @@ function fabriquerPourTest(c: Connection): Adapter | null {
   if (c.kind === 'mqtt') return new MqttAdapter(ctx);
   if (c.kind === 'http') return new HttpAdapter(ctx);
   if (c.kind === 'modbus') return new ModbusAdapter(ctx);
+  if (c.kind === 'homeassistant') return new HomeAssistantAdapter(ctx);
   return null;
 }
 
+/**
+ * Applique une configuration.
+ *
+ * L'ordre compte : on l'APPLIQUE d'abord (canaux, planificateur), et on ne
+ * l'ÉCRIT en base que si tout a tenu. Écrire avant d'appliquer, c'est risquer
+ * une configuration que le serveur accepte en base mais refuse au démarrage :
+ * il ne redémarrerait plus jamais, et systemd le relancerait en boucle.
+ *
+ * Deux filets avant même d'essayer : la forme (un champ absent, un type
+ * faux, un fuseau inconnu) puis la cohérence métier. Les deux rendent des
+ * messages lisibles plutôt qu'une trace de pile.
+ *
+ * Les applications sont sérialisées : deux enregistrements rapprochés : un
+ * double clic sur « Enregistrer » : s'enchaînent au lieu de se chevaucher.
+ */
+let applicationEnCours: Promise<unknown> = Promise.resolve();
+
 async function applyConfig(next: HouseConfig, reply: { status(c: number): { send(b: unknown): unknown } }) {
+  const forme = verifierForme(next);
+  if (forme) return reply.status(400).send({ ok: false, error: forme });
+
   const issues = validateConfig(next);
   const blocking = issues.filter(isBlocking);
   if (blocking.length) return reply.status(400).send({ ok: false, issues: blocking });
 
-  const avant = config!.homekit;
-  config = next;
-  db.saveConfig(next);
-  await hub.reload(next);
+  const tour = applicationEnCours.then(() => appliquer(next));
+  applicationEnCours = tour.catch(() => undefined);
+  try {
+    await tour;
+  } catch (e) {
+    return reply.status(500).send({ ok: false, error: (e as Error).message });
+  }
+  return { ok: true, config: next, warnings: issues.filter((i) => !isBlocking(i)) };
+}
 
-  // Les horaires changent avec la configuration : un réveil déplacé doit
-  // partir à sa nouvelle heure sans redémarrer le serveur.
-  planificateur.reload(next);
+async function appliquer(next: HouseConfig): Promise<void> {
+  const precedente = config!;
+  const avant = precedente.homekit;
+  config = next;
+  try {
+    await hub.reload(next);
+    // Les horaires changent avec la configuration : un réveil déplacé doit
+    // partir à sa nouvelle heure sans redémarrer le serveur.
+    planificateur.reload(next);
+  } catch (e) {
+    // Retour à la configuration d'avant, qui, elle, tenait.
+    config = precedente;
+    console.warn(`[config] refusée à l'application, retour en arrière : ${(e as Error).message}`);
+    try {
+      await hub.reload(precedente);
+      planificateur.reload(precedente);
+    } catch (e2) {
+      console.error(`[config] le retour en arrière a échoué : ${(e2 as Error).message}`);
+    }
+    throw new Error(`Configuration refusée : ${(e as Error).message}`);
+  }
+  db.saveConfig(next);
+  if (configDeSecours) {
+    configDeSecours = false;
+    console.log('[config] configuration enregistrée : la maison de secours est remplacée.');
+  }
 
   // Le pont ne se relance que si quelque chose le concerne a bougé : republier
   // à chaque enregistrement ferait clignoter la maison dans l'app d'Apple.
@@ -952,8 +1144,6 @@ async function applyConfig(next: HouseConfig, reply: { status(c: number): { send
       console.warn(`[homekit] ${(e as Error).message}`);
     }
   }
-
-  return { ok: true, config: next, warnings: issues.filter((i) => !isBlocking(i)) };
 }
 
 /** Les réglages du pont ont-ils bougé ? */
@@ -1020,7 +1210,9 @@ try {
 
 // ---------------------------------------------------------------- entretien
 
-const pruner = setInterval(() => db.prune(), 12 * 3_600_000);
+const pruner = setInterval(() => {
+  db.prune().catch((e: Error) => console.warn(`[base] purge interrompue : ${e.message}`));
+}, 12 * 3_600_000);
 pruner.unref();
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

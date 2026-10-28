@@ -31,11 +31,13 @@ struct ClimateTile: View {
 
             HStack(spacing: 10) {
                 pas("minus", -0.5, "Diminuer la consigne")
-                Text(climat.map { String(format: "%.1f", $0.setpoint) } ?? "-")
+                // Un thermostat périmé ne montre pas sa dernière consigne : elle
+                // ne vaut plus (même règle que sur le web).
+                Text(!infos.injoignable ? climat.map { String(format: "%.1f", $0.setpoint) } ?? "-" : "-")
                     .police(24, .semibold, .monospaced)
                     .frame(width: 62)
                     .accessibilityLabel("Consigne")
-                    .accessibilityValue(climat.map { String(format: "%.1f degrés", $0.setpoint) } ?? "inconnue")
+                    .accessibilityValue(!infos.injoignable ? climat.map { String(format: "%.1f degrés", $0.setpoint) } ?? "inconnue" : "valeur périmée")
                 pas("plus", 0.5, "Augmenter la consigne")
             }
         }

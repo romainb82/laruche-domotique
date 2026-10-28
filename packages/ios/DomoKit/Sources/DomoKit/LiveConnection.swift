@@ -15,17 +15,21 @@ public actor LiveConnection {
         case reloaded
         case connected
         case disconnected
+        /// Le serveur refuse le jeton : il faut se reconnecter.
+        case nonAuthentifie
     }
 
     private let base: URL
+    private let jeton: String?
     private let session: URLSession
     private var task: URLSessionWebSocketTask?
     private var continuation: AsyncStream<Event>.Continuation?
     private var arrete = false
     private var tentatives = 0
 
-    public init(base: URL, session: URLSession = .shared) {
+    public init(base: URL, jeton: String? = nil, session: URLSession = .shared) {
         self.base = base
+        self.jeton = jeton
         self.session = session
     }
 
@@ -52,7 +56,10 @@ public actor LiveConnection {
         composants?.scheme = base.scheme == "https" ? "wss" : "ws"
         guard let url = composants?.url else { return }
 
-        let task = session.webSocketTask(with: url)
+        // Le même en-tête que pour HTTP : la garde du serveur couvre `/ws`.
+        var request = URLRequest(url: url)
+        DomoClient.autoriser(&request, jeton: jeton)
+        let task = session.webSocketTask(with: request)
         self.task = task
         task.resume()
         // On n'annonce PAS « connecté » ici : ouvrir une socket ne prouve rien.
@@ -74,6 +81,13 @@ public actor LiveConnection {
         } catch {
             guard !arrete else { return }
             continuation?.yield(.disconnected)
+            // Un refus d'authentification (le serveur ferme en 401 avant même
+            // d'ouvrir) ne se répare pas en insistant : on prévient et on s'arrête.
+            if let http = task.response as? HTTPURLResponse, http.statusCode == 401 {
+                continuation?.yield(.nonAuthentifie)
+                arrete = true
+                return
+            }
             await reconnect()
         }
     }

@@ -27,6 +27,10 @@ export class StateHub extends EventEmitter {
   private states = new Map<string, DeviceState>();
   private devices = new Map<string, DeviceConfig>();
   private pendingTimers = new Map<string, NodeJS.Timeout>();
+  /** La commande en attente de confirmation, par équipement. */
+  private attentes = new Map<string, { command: Command; origin: ActionOrigin }>();
+  /** Avertissements d'ingestion, bridés : une trame cassée en boucle ne doit pas noyer le journal. */
+  private dernierAvertissement = new Map<string, number>();
   private registry: AdapterRegistry | null = null;
   private staleTimer: NodeJS.Timeout | null = null;
   /** Dernière écriture par équipement : le débit est bridé équipement par équipement. */
@@ -76,8 +80,9 @@ export class StateHub extends EventEmitter {
 
     this.registry = new AdapterRegistry(
       this.config,
-      ({ deviceId, caps }) => this.ingest(deviceId, caps),
+      ({ deviceId, caps }) => this.ingerer(deviceId, caps),
       (m) => this.emit('warn', m),
+      (deviceId) => this.states.get(deviceId)?.caps ?? [],
     );
 
     // Le registre encaisse lui-même les pannes de canal : un broker
@@ -92,17 +97,31 @@ export class StateHub extends EventEmitter {
     if (this.staleTimer) clearInterval(this.staleTimer);
     for (const t of this.pendingTimers.values()) clearTimeout(t);
     this.pendingTimers.clear();
+    this.attentes.clear();
     await this.registry?.stop();
     this.registry = null;
   }
 
-  /** Rechargement à chaud après une modification de configuration. */
-  async reload(config: HouseConfig): Promise<void> {
-    await this.stop();
-    this.config = config;
-    this.states.clear();
-    await this.start();
-    this.emit('reload');
+  /**
+   * Rechargement à chaud après une modification de configuration.
+   *
+   * Sérialisé : deux rechargements rapprochés s'enchaînent au lieu de se
+   * chevaucher. Sans cette file, le second `stop()` vidait le registre que le
+   * premier `start()` était encore en train de remplir, et les canaux ouverts
+   * ensuite n'avaient plus personne pour les arrêter.
+   */
+  private rechargement: Promise<void> = Promise.resolve();
+
+  reload(config: HouseConfig): Promise<void> {
+    const tour = this.rechargement.then(async () => {
+      await this.stop();
+      this.config = config;
+      this.states.clear();
+      await this.start();
+      this.emit('reload');
+    });
+    this.rechargement = tour.catch(() => undefined);
+    return tour;
   }
 
   snapshot(): DeviceState[] {
@@ -127,12 +146,31 @@ export class StateHub extends EventEmitter {
       this.armTimeout(id, command, origin);
     } catch (err) {
       this.markPending(id, false);
-      this.db.logAction(id, command, origin, 'rejected');
+      this.journaliser(id, command, origin, 'rejected');
       throw err;
     }
   }
 
   // -------------------------------------------------------------- ingestion
+
+  /**
+   * La cloison. Tout ce qui vient du matériel passe par ici, et rien de ce
+   * qui s'y passe ne doit faire tomber le serveur : une trame malformée, un
+   * pipeline mal configuré ou un disque plein se journalisent et c'est tout.
+   * Un serveur qui meurt sur un message, c'est une maison sans pilotage, et
+   * qui remeurt au message suivant après chaque redémarrage.
+   */
+  private ingerer(id: string, caps: Capability[]): void {
+    try {
+      this.ingest(id, caps);
+    } catch (e) {
+      const now = Date.now();
+      if (now - (this.dernierAvertissement.get(id) ?? 0) > 60_000) {
+        this.dernierAvertissement.set(id, now);
+        this.emit('warn', `[${id}] nouvelle du matériel ignorée : ${(e as Error).message}`);
+      }
+    }
+  }
 
   private ingest(id: string, caps: Capability[]): void {
     const device = this.devices.get(id);
@@ -153,10 +191,17 @@ export class StateHub extends EventEmitter {
       pending: stillMoving,
     };
 
+    if (!stillMoving && previous?.pending) {
+      // Toute nouvelle du matériel ne vaut pas confirmation : un relevé
+      // périodique parti AVANT la commande répète l'ancien état. On ne lève
+      // `pending` que si ce qu'on reçoit correspond à ce qu'on a demandé ;
+      // sinon on attend la suite, ou le délai de garde.
+      const attendu = this.attentes.get(id);
+      if (!attendu || correspond(fusion, attendu.command)) this.confirm(id);
+      else next.pending = true;
+    }
+
     this.states.set(id, next);
-
-    if (!stillMoving && previous?.pending) this.confirm(id);
-
     this.persistReadings(device, fusion);
     this.emit('state', next);
   }
@@ -166,6 +211,26 @@ export class StateHub extends EventEmitter {
     if (timer) {
       clearTimeout(timer);
       this.pendingTimers.delete(id);
+    }
+    const attendu = this.attentes.get(id);
+    if (attendu) {
+      this.attentes.delete(id);
+      // « confirmée » s'écrit quand le matériel a répondu, pas à l'envoi.
+      this.journaliser(id, attendu.command, attendu.origin, 'confirmed');
+    }
+  }
+
+  /** Le journal ne doit jamais faire tomber une commande : un disque plein se dit, c'est tout. */
+  private journaliser(
+    id: string,
+    command: Command,
+    origin: ActionOrigin,
+    outcome: 'confirmed' | 'timeout' | 'rejected',
+  ): void {
+    try {
+      this.db.logAction(id, command, origin, outcome);
+    } catch (e) {
+      this.emit('warn', `[journal] écriture impossible : ${(e as Error).message}`);
     }
   }
 
@@ -188,16 +253,17 @@ export class StateHub extends EventEmitter {
 
     const timer = setTimeout(() => {
       this.pendingTimers.delete(id);
+      this.attentes.delete(id);
       const current = this.states.get(id);
       if (!current?.pending) return;
       this.states.set(id, { ...current, pending: false, health: 'stale' });
-      this.db.logAction(id, command, origin, 'timeout');
+      this.journaliser(id, command, origin, 'timeout');
       this.emit('state', this.states.get(id)!);
     }, budget);
     timer.unref?.();
 
     this.pendingTimers.set(id, timer);
-    this.db.logAction(id, command, origin, 'confirmed');
+    this.attentes.set(id, { command, origin });
   }
 
   /**
@@ -231,18 +297,68 @@ export class StateHub extends EventEmitter {
    */
   private persistReadings(device: DeviceConfig, caps: Capability[]): void {
     const now = Date.now();
-    if (now - (this.dernierEcrit.get(device.id) ?? 0) < 1_000) return;
+    // Les mesures SIMULÉES sont inventées : les écrire une fois par seconde
+    // userait la carte du Pi pour remplir la base de nombres aléatoires. Une
+    // par minute suffit à tester les écrans ; le vrai matériel garde 1 Hz.
+    const simule = this.registry?.canalDe(device.id) === 'sim';
+    if (now - (this.dernierEcrit.get(device.id) ?? 0) < (simule ? 60_000 : 1_000)) return;
     this.dernierEcrit.set(device.id, now);
 
-    for (const cap of caps) {
-      if (cap.kind === 'sensor') this.db.recordReading(device.id, cap.metric, cap.value);
-      else if (cap.kind === 'climate') this.db.recordReading(device.id, 'temperature', cap.ambient);
+    try {
+      for (const cap of caps) {
+        if (cap.kind === 'sensor') this.db.recordReading(device.id, cap.metric, cap.value);
+        else if (cap.kind === 'climate') this.db.recordReading(device.id, 'temperature', cap.ambient);
+      }
+    } catch (e) {
+      // Disque plein ou carte repassée en lecture seule : l'état en mémoire
+      // reste juste, seule l'historisation s'arrête. On le dit, au plus une
+      // fois par minute et par équipement.
+      if (now - (this.dernierAvertissement.get(device.id) ?? 0) > 60_000) {
+        this.dernierAvertissement.set(device.id, now);
+        this.emit('warn', `[${device.id}] mesure non historisée : ${(e as Error).message}`);
+      }
     }
   }
 
   private indexDevices(): void {
     this.devices.clear();
     for (const d of this.config.devices) this.devices.set(d.id, d);
+  }
+}
+
+/**
+ * La nouvelle du matériel correspond-elle à la commande envoyée ?
+ *
+ * C'est ce qui sépare « le module a répondu » de « le module a parlé ».
+ * Tolérances volontaires : un variateur qui arrondit, un volet qui s'arrête
+ * à 98 au lieu de 100, un thermostat au demi-degré.
+ */
+function correspond(caps: Capability[], command: Command): boolean {
+  const cap = (kind: Capability['kind']) => caps.find((c) => c.kind === kind);
+  switch (command.kind) {
+    case 'switch': {
+      const c = cap('switch');
+      return c?.kind === 'switch' && c.state === command.state;
+    }
+    case 'dim': {
+      const c = cap('dim');
+      if (c?.kind === 'dim') return Math.abs(c.level - command.level) <= 2;
+      // Un variateur sans retour de niveau : on se contente de l'interrupteur.
+      const s = cap('switch');
+      return s?.kind === 'switch' && s.state === command.level > 0;
+    }
+    case 'cover': {
+      const c = cap('cover');
+      return c?.kind === 'cover' && c.moving === null && Math.abs(c.position - command.position) <= 3;
+    }
+    case 'cover-stop': {
+      const c = cap('cover');
+      return c?.kind === 'cover' && c.moving === null;
+    }
+    case 'climate': {
+      const c = cap('climate');
+      return c?.kind === 'climate' && Math.abs(c.setpoint - command.setpoint) <= 0.5;
+    }
   }
 }
 

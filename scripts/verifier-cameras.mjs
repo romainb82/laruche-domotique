@@ -100,8 +100,8 @@ ok(!morte?.ok && /refuse la connexion/i.test(morte?.error ?? ''),
 
 const [code, corps] = await put('/api/config', { ...propre, cameras: [entree, repos] });
 ok(code === 200, 'Configuration acceptée avec deux caméras');
-ok((corps?.warnings ?? []).some((w) => /aucune authentification/.test(w.message)),
-   `Caméra active signalée, sans bloquer : « ${(corps?.warnings ?? []).find((w) => /authentification/.test(w.message))?.message}` + ' »');
+ok((corps?.warnings ?? []).some((w) => /caméra\(s\) active\(s\)/.test(w.message)),
+   `Caméra active signalée, sans bloquer : « ${(corps?.warnings ?? []).find((w) => /active\(s\)/.test(w.message))?.message}` + ' »');
 await pause(600);
 
 // --- LES SECRETS ne sortent pas ---
