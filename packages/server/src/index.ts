@@ -29,6 +29,7 @@ import { StateHub } from './state.js';
 import { MqttAdapter } from './adapters/mqtt.js';
 import { HttpAdapter } from './adapters/http.js';
 import { ModbusAdapter } from './adapters/modbus.js';
+import { HomeAssistantAdapter } from './adapters/homeassistant.js';
 import type { Adapter } from './adapters/adapter.js';
 import { PontHomeKit } from './homekit.js';
 import { Planificateur } from './planificateur.js';
@@ -167,6 +168,21 @@ try {
   // Un pont qui refuse de s'ouvrir ne doit pas empêcher la maison de marcher.
   console.warn(`[homekit] ${(e as Error).message}`);
 }
+
+/**
+ * Le dernier filet.
+ *
+ * Tout ce qui précède cloisonne ses erreurs ; s'il en reste une qui échappe,
+ * on la journalise au lieu de laisser Node tuer le processus. Un serveur qui
+ * meurt sur une promesse oubliée, c'est une maison sans pilotage, et systemd
+ * qui le relance pour le voir remourir sur le même message.
+ */
+process.on('unhandledRejection', (raison) => {
+  console.error(`[serveur] promesse rejetée sans suite : ${(raison as Error)?.message ?? String(raison)}`);
+});
+process.on('uncaughtException', (e) => {
+  console.error(`[serveur] exception non rattrapée : ${e.stack ?? e.message}`);
+});
 
 const app = Fastify({ logger: false });
 await app.register(websocket);
@@ -800,8 +816,14 @@ app.post<{ Body: Connection }>('/api/connections/test', async (req, reply) => {
   try {
     const adapter = fabriquerPourTest(c);
     if (!adapter) return reply.status(400).send({ ok: false, error: 'Type de connexion inconnu.' });
-    await adapter.start();
-    await adapter.stop();
+    try {
+      await adapter.start();
+    } finally {
+      // Même si l'ouverture a échoué : un client MQTT qui n'a pas trouvé son
+      // broker continue d'essayer toutes les cinq secondes tant qu'on ne
+      // l'arrête pas, et chaque clic sur « Tester » en laissait un de plus.
+      await adapter.stop().catch(() => undefined);
+    }
     return { ok: true, ms: Date.now() - debut };
   } catch (e) {
     return reply.status(200).send({ ok: false, error: (e as Error).message, ms: Date.now() - debut });
@@ -1030,6 +1052,7 @@ function fabriquerPourTest(c: Connection): Adapter | null {
   if (c.kind === 'mqtt') return new MqttAdapter(ctx);
   if (c.kind === 'http') return new HttpAdapter(ctx);
   if (c.kind === 'modbus') return new ModbusAdapter(ctx);
+  if (c.kind === 'homeassistant') return new HomeAssistantAdapter(ctx);
   return null;
 }
 

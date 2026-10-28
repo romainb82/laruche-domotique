@@ -67,7 +67,17 @@ export class ModbusTcpClient {
         clearTimeout(minutier);
         s.removeAllListeners('error');
         this.socket = s;
-        s.on('data', (d) => this.recevoir(d));
+        s.on('data', (d) => {
+          try {
+            this.recevoir(d);
+          } catch (e) {
+            // Une trame qui ne se lit pas (passerelle boguée, service qui
+            // n'est pas du Modbus sur ce port) rompt la requête en cours, et
+            // rien d'autre : surtout pas le processus.
+            this.tampon = Buffer.alloc(0);
+            this.rompre(new Error(`Réponse illisible : ${(e as Error).message}`));
+          }
+        });
         s.on('error', (e) => this.rompre(new Error(lisible(e, `${this.host}:${this.port}`))));
         s.on('close', () => this.rompre(new Error('Le matériel a fermé la connexion.')));
         resolve();
@@ -212,6 +222,9 @@ export class ModbusTcpClient {
     // c'est l'en-tête qui dit où chacune s'arrête.
     while (this.tampon.length >= 8) {
       const longueur = this.tampon.readUInt16BE(4);
+      // Une trame annonce au moins l'unité et la fonction (2 octets), et le
+      // transport en borne la taille : hors de ça ce n'est pas du Modbus.
+      if (longueur < 2 || longueur > 260) throw new Error(`longueur de trame ${longueur}`);
       const total = 6 + longueur;
       if (this.tampon.length < total) return;
 

@@ -1,6 +1,7 @@
 import {
   SIM_CONNECTION,
   type Candidate,
+  type Capability,
   type Command,
   type Connection,
   type ConnectionStatus,
@@ -30,18 +31,34 @@ export class AdapterRegistry {
   private adapters = new Map<string, Adapter>();
   /** deviceId → id de la connexion qui le sert réellement. */
   private routage = new Map<string, string>();
+  /**
+   * Le message d'échec du DÉMARRAGE, par connexion. Il ne sert qu'à
+   * l'affichage, tant que l'adaptateur n'a pas réussi à se connecter depuis :
+   * un broker qui démarre après le serveur finit par répondre, et la
+   * connexion doit alors redevenir utilisable sans qu'on réenregistre quoi
+   * que ce soit.
+   */
   private erreurs = new Map<string, string>();
+  /** Vrai dès que `stop()` est demandé : un `start()` encore en cours s'arrête là. */
+  private arrete = false;
 
   constructor(
     private config: HouseConfig,
     private emit: PatchHandler,
     private warn: (m: string) => void = () => {},
+    private courant?: (deviceId: string) => Capability[],
   ) {}
 
   async start(): Promise<void> {
     const connexions = this.connexionsUtiles();
+    this.arrete = false;
 
     for (const connexion of connexions) {
+      // Un `stop()` survenu pendant qu'un canal lent se connectait : double
+      // clic sur « Enregistrer » : ne doit pas laisser ce registre continuer
+      // à ouvrir des canaux que plus personne n'arrêtera.
+      if (this.arrete) return;
+
       const servis = this.equipementsDe(connexion.id);
       const adapter = this.fabriquer(connexion);
       if (!adapter) continue;
@@ -55,6 +72,10 @@ export class AdapterRegistry {
       try {
         await adapter.start();
         this.erreurs.delete(connexion.id);
+        if (this.arrete) {
+          await adapter.stop().catch(() => undefined);
+          return;
+        }
       } catch (e) {
         // Une connexion qui échoue ne fait pas tomber le serveur : on note, on
         // le remonte à l'interface, et on continue avec les autres.
@@ -66,6 +87,7 @@ export class AdapterRegistry {
   }
 
   async stop(): Promise<void> {
+    this.arrete = true;
     await Promise.allSettled([...this.adapters.values()].map((a) => a.stop()));
     this.adapters.clear();
     this.routage.clear();
@@ -77,8 +99,13 @@ export class AdapterRegistry {
     const adapter = this.adapters.get(connexionId);
     if (!adapter) throw new Error(`Aucun canal actif pour « ${device.label} ».`);
 
-    const panne = this.erreurs.get(connexionId);
-    if (panne) throw new Error(panne);
+    // On regarde l'état VIVANT du canal, pas l'erreur figée au démarrage :
+    // un broker revenu entre-temps doit accepter la commande.
+    const vivant = adapter.status().state;
+    if (vivant === 'error') {
+      const panne = adapter.status().detail ?? this.erreurs.get(connexionId);
+      throw new Error(panne ?? 'Le canal ne répond pas.');
+    }
 
     await adapter.command(device, command);
   }
@@ -92,7 +119,9 @@ export class AdapterRegistry {
     return this.config.connections.map((c) => {
       const adapter = this.adapters.get(c.id);
       const base = adapter?.status();
-      const panne = this.erreurs.get(c.id);
+      // L'erreur de démarrage ne vaut que tant que le canal n'a pas réussi à
+      // se connecter depuis.
+      const panne = base?.state === 'connected' ? undefined : this.erreurs.get(c.id);
 
       if (!c.enabled) {
         return {
@@ -168,7 +197,9 @@ export class AdapterRegistry {
   }
 
   private fabriquer(connexion: Connection): Adapter | null {
-    const ctx: AdapterContext = { connection: connexion, emit: this.emit, warn: this.warn };
+    const ctx: AdapterContext = {
+      connection: connexion, emit: this.emit, warn: this.warn, courant: this.courant,
+    };
     switch (connexion.kind) {
       case 'sim': return new SimAdapter(ctx);
       case 'mqtt': return new MqttAdapter(ctx);

@@ -1,6 +1,7 @@
 import {
   prochaineOccurrence,
   findCap,
+  isActionable,
   type ActionOrigin,
   type Command,
   type HouseConfig,
@@ -214,8 +215,10 @@ export class Planificateur {
 
     const etat = this.hub.get(c.deviceId);
     const nom = this.config?.devices.find((d) => d.id === c.deviceId)?.label ?? c.deviceId;
-    if (!etat || etat.health === 'offline')
-      return `Condition invérifiable : « ${nom} » ne répond pas.`;
+    // Règle 2 : une valeur périmée ne pilote rien. Un module Zigbee mort
+    // depuis la veille avec « allumé » figé ne doit pas faire partir une scène.
+    if (!isActionable(etat))
+      return `Condition invérifiable : « ${nom} » ${etat?.health === 'stale' ? 'ne donne plus de nouvelles' : 'ne répond pas'}.`;
 
     const allume = findCap(etat, 'switch')?.state === true;
     if (allume === (c.is === 'on')) return null;
