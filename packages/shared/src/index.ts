@@ -7,3 +7,4 @@ export * from './horaire.js';
 export * from './energie.js';
 export * from './migrate.js';
 export * from './seed.js';
+export * from './forme.js';
