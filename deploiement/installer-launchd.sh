@@ -82,11 +82,13 @@ echo
 
 # Laisser au serveur le temps d'ouvrir son port avant de prétendre qu'il marche.
 for _ in $(seq 1 40); do
-  curl -sf -o /dev/null "http://127.0.0.1:3001/api/state" && break
+  curl -sf -o /dev/null "http://127.0.0.1:3001/api/auth/etat" && break
   sleep 0.25
 done
 
-if curl -sf -o /dev/null "http://127.0.0.1:3001/api/state"; then
+# /api/auth/etat et non /api/state : depuis l'authentification, /api/state
+# répond 401 sans session, et `curl -f` prenait ce refus pour une panne.
+if curl -sf -o /dev/null "http://127.0.0.1:3001/api/auth/etat"; then
   ADRESSE="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo '127.0.0.1')"
   echo "Le serveur répond.   http://$ADRESSE:3001"
   echo "Journal          :   tail -f $RACINE/data/ruche.log"

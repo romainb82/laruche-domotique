@@ -63,9 +63,8 @@ SyslogIdentifier=ruche
 
 # ---------------------------------------------------------- durcissement
 #
-# Le serveur n'a aucune authentification et pilote des caméras d'intérieur.
-# Tant que ce n'est pas corrigé, autant qu'une faille dans une dépendance ne
-# donne pas la machine entière.
+# Le serveur pilote la maison et relaie des caméras d'intérieur : une faille
+# dans une dépendance ne doit pas donner la machine entière.
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true

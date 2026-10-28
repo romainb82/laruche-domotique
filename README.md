@@ -92,9 +92,14 @@ fonctionner.**
 
 Les suites tournent contre le serveur réellement démarré, jamais contre des
 simulacres : c'est la seule façon de voir un volet mettre du temps à arriver.
+Elles se connectent comme n'importe qui (`RUCHE_IDENT` / `RUCHE_MDP`, sinon un
+compte de développement), photographient la configuration à l'entrée et la
+remettent à l'identique à la sortie. Contre une maison qui a de vrais
+raccordements, elles refusent de tourner sans `RUCHE_VERIF_OK=1` : à réserver
+à une base de développement.
 
 ```bash
-npm run verifier        # 89 tests : API, cerveau, HTTP, Modbus, HomeKit, scènes, interface
+npm run verifier        # API, comptes, cerveau, HTTP, Modbus, Home Assistant, HomeKit, scènes, interface
 npm run audit:a11y      # accessibilité du web, mesurée par axe-core
 npm run audit:a11y:ios  # accessibilité de l'app iOS, sur simulateur
 ```

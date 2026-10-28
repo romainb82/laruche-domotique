@@ -893,7 +893,7 @@ const KINDS = Object.keys(ZONE_KIND_LABELS) as ZoneKind[];
         <div class="card">
           <div class="flex items-center justify-between">
             <h2 class="card-title">Sur le réseau</h2>
-            <button v-if="candidats.length" class="press text-xs font-medium text-soft" @click="viderDecouverte">
+            <button v-if="candidats.length" class="press min-h-[32px] rounded-lg px-2 text-xs font-medium text-soft" @click="viderDecouverte">
               Vider
             </button>
           </div>

@@ -223,4 +223,6 @@ for (const b of bilan.filter((x) => x.largeur === 390)) {
 
 const graves = regles.filter((r) => r.impact === 'critical' || r.impact === 'serious').length;
 console.log(`\n=== BILAN : ${regles.length} règle(s) en échec, dont ${graves} grave(s) ; ${petites} cible(s) trop petite(s) ===`);
-process.exit(0);
+// Un audit qui ne peut pas échouer n'audite rien : une violation grave ou une
+// cible trop petite fait tomber la commande, comme n'importe quelle suite.
+process.exit(graves || petites ? 1 : 0);
