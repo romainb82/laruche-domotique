@@ -18,6 +18,7 @@
  * exactement le genre de mensonge que ce projet refuse.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { http } from '@/stores/http';
 import { PERIODE_LABELS, type Periode } from '@domo/shared';
 import Icon from '@/components/Icon.vue';
 
@@ -46,7 +47,7 @@ async function charger() {
   chargement.value = true;
   erreur.value = null;
   try {
-    bilan.value = await (await fetch(`/api/energy?period=${periode.value}`)).json();
+    bilan.value = await http(`/api/energy?period=${periode.value}`);
   } catch (e) {
     bilan.value = null;
     erreur.value = (e as Error).message;

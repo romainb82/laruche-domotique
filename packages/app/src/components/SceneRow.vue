@@ -10,6 +10,7 @@
  * que de les taire : une scene a moitie appliquee est pire qu'une scene ratee.
  */
 import { ref } from 'vue';
+import { http } from '@/stores/http';
 import { useHouse } from '@/stores/house';
 import { useAnnonce } from '@/composables/useAnnonce';
 import Icon from './Icon.vue';
@@ -23,14 +24,18 @@ async function jouer(id: string, label: string) {
   enCours.value = id;
   retour.value = null;
   try {
-    const res = await fetch(`/api/scenes/${encodeURIComponent(id)}/apply`, { method: 'POST' });
-    const body = await res.json();
-    retour.value = body.echecs
-      ? { id, texte: `${label} : ${body.echecs} équipement(s) n'ont pas répondu`, ok: false }
-      : { id, texte: `${label} · ${body.total} équipements`, ok: true };
+    const body = await http<{ ok: boolean; total: number; echecs: number; refus?: string | null }>(
+      `/api/scenes/${encodeURIComponent(id)}/apply`,
+      { method: 'POST' },
+    );
+    retour.value = body.refus
+      ? { id, texte: `${label} : ${body.refus}`, ok: false }
+      : body.echecs
+        ? { id, texte: `${label} : ${body.echecs} équipement(s) n'ont pas répondu`, ok: false }
+        : { id, texte: `${label} · ${body.total} équipements`, ok: true };
     annoncer(retour.value.texte);
-  } catch {
-    retour.value = { id, texte: `${label} : serveur injoignable`, ok: false };
+  } catch (e) {
+    retour.value = { id, texte: `${label} : ${(e as Error).message}`, ok: false };
     annoncer(retour.value.texte);
   } finally {
     enCours.value = null;

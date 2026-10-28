@@ -15,6 +15,7 @@
  * mensonge qu'une caméra de sécurité ne doit pas faire.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { http } from '@/stores/http';
 import Icon from '@/components/Icon.vue';
 
 interface Camera {
@@ -39,7 +40,7 @@ const minuteries: number[] = [];
 
 async function charger() {
   try {
-    const r = await (await fetch('/api/cameras')).json();
+    const r = await http<{ cameras: Camera[] }>('/api/cameras');
     cameras.value = r.cameras ?? [];
     for (const c of cameras.value) {
       jetons.value[c.id] = Date.now();
@@ -71,10 +72,10 @@ function recue(c: Camera) {
 async function ratee(c: Camera) {
   let raison = 'Image indisponible.';
   try {
-    const r = await fetch(url(c));
-    if (!r.ok) raison = (await r.json())?.error ?? raison;
-  } catch {
-    /* le serveur lui-même est injoignable : le bandeau global le dit déjà */
+    // `http()` lève avec le message du serveur, c'est ce qu'on veut lire.
+    await http(url(c));
+  } catch (e) {
+    raison = (e as Error).message || raison;
   }
   vues.value[c.id] = { at: vues.value[c.id]?.at ?? 0, erreur: raison };
 }
@@ -106,13 +107,12 @@ function basculer(id: string) {
 
     <p
       v-if="actives.length"
-      class="flex items-start gap-2.5 rounded-2xl border border-warn/40 bg-warn/[0.08] px-4 py-3 text-sm text-warn-deep"
+      class="flex items-start gap-2.5 rounded-2xl border border-line bg-raised px-4 py-3 text-sm text-soft"
     >
-      <Icon name="alerte" :size="17" class="mt-px shrink-0" />
+      <Icon name="porte" :size="17" class="mt-px shrink-0" />
       <span>
-        Le serveur n'a aucune authentification : toute machine du réseau local
-        qui connaît son adresse peut demander ces images. Pour des lampes c'est
-        sans conséquence, pour des caméras d'intérieur, non.
+        Images relayées par le serveur, réservées aux comptes « habitant » et
+        « administrateur ». Un invité ne les voit pas.
       </span>
     </p>
 

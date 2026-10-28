@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue';
+import { ref, watch, type Ref } from 'vue';
 
 /**
  * Distingue le TOUCHER du GLISSER sur une même tuile.
@@ -32,6 +32,16 @@ export function useTileDrag(options: {
   const apercu = ref<number | null>(null);
   const actif = ref(false);
   const SEUIL = 8;
+  let fin: number | null = null;
+
+  // L'aperçu n'est PAS une mise à jour optimiste : il meurt dès que le
+  // matériel donne de ses nouvelles, quelle que soit la valeur reçue.
+  watch(options.valeur, () => {
+    if (actif.value) return;
+    apercu.value = null;
+    if (fin) clearTimeout(fin);
+    fin = null;
+  });
 
   function onPointerdown(e: PointerEvent) {
     if (!options.actionnable()) return;
@@ -45,6 +55,8 @@ export function useTileDrag(options: {
     let glisse = false;
 
     cible.setPointerCapture(e.pointerId);
+    if (fin) clearTimeout(fin);
+    fin = null;
 
     const bouge = (ev: PointerEvent) => {
       const dy = ev.clientY - depart.y;
@@ -73,7 +85,8 @@ export function useTileDrag(options: {
       actif.value = false;
       // On garde l'aperçu le temps que le vrai état revienne du matériel :
       // sans ça, la tuile retomberait à l'ancienne valeur pendant un instant.
-      setTimeout(() => { apercu.value = null; }, 700);
+      // Si rien ne revient, on cesse de montrer ce qu'on a demandé.
+      fin = window.setTimeout(() => { apercu.value = null; }, 3000);
     };
 
     const annule = () => {

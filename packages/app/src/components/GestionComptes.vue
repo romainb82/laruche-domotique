@@ -12,6 +12,7 @@
  *   . il doit toujours rester un administrateur actif.
  */
 import { computed, onMounted, ref } from 'vue';
+import { http } from '@/stores/http';
 import {
   MOT_DE_PASSE_MIN,
   ROLES,
@@ -47,18 +48,12 @@ const aSupprimer = ref<string | null>(null);
 async function appel(url: string, options: RequestInit = {}): Promise<unknown | null> {
   erreur.value = null;
   try {
-    const r = await fetch(url, {
-      ...options,
-      headers: options.body ? { 'content-type': 'application/json' } : {},
+    return await http(url, {
+      method: (options.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'DELETE',
+      body: options.body ? JSON.parse(options.body as string) : undefined,
     });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      erreur.value = (d as { error?: string }).error ?? `Échec (${r.status})`;
-      return null;
-    }
-    return d;
-  } catch {
-    erreur.value = 'La maison ne répond pas.';
+  } catch (e) {
+    erreur.value = (e as Error).message;
     return null;
   }
 }

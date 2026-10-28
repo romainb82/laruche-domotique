@@ -752,6 +752,23 @@ app.post<{ Params: { id: string } }>('/api/scenes/:id/apply', async (req, reply)
   return planificateur.jouer(req.params.id, 'ui');
 });
 
+/**
+ * Essai d'une scène NON enregistrée : l'éditeur envoie son brouillon.
+ *
+ * Même chemin qu'un départ programmé (conditions, retards, journal), mais la
+ * scène vient du corps de la requête. Réservé à l'administrateur, comme
+ * l'écriture des scènes : c'est bien de l'édition.
+ */
+app.post<{ Body: SceneConfig }>('/api/scenes/essai', async (req, reply) => {
+  if (!exige(req, reply, 'admin')) return reply;
+  const forme = verifierForme({ ...config!, scenes: [req.body] });
+  if (forme) return reply.status(400).send({ ok: false, error: forme });
+  const inconnus = req.body.actions.filter((a) => !config!.devices.some((d) => d.id === a.deviceId));
+  if (inconnus.length)
+    return reply.status(400).send({ ok: false, error: `Équipement inconnu : ${inconnus[0]!.deviceId}` });
+  return planificateur.essayer(req.body, 'ui');
+});
+
 /** Les départs passés, et pourquoi certains n'ont pas eu lieu. */
 app.get<{ Querystring: { limit?: string } }>('/api/scenes/history', async (req) => ({
   runs: planificateur.historique(Math.min(200, Number(req.query.limit) || 40)),

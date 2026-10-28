@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '@/views/HomeView.vue';
 import { useAuth } from '@/stores/auth';
+import type { Role } from '@domo/shared';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -21,7 +22,14 @@ export const router = createRouter({
     // doivent continuer de l'atteindre.
     { path: '/scenarios', name: 'scenarios', component: () => import('@/views/ScenariosView.vue') },
     { path: '/energie', name: 'energie', component: () => import('@/views/EnergyView.vue') },
-    { path: '/securite', name: 'securite', component: () => import('@/views/CamerasView.vue') },
+    {
+      path: '/securite',
+      name: 'securite',
+      component: () => import('@/views/CamerasView.vue'),
+      // Les caméras ne sont pas pour les invités : le serveur le refuse déjà,
+      // l'interface évite d'afficher une page d'erreurs.
+      meta: { role: 'habitant' },
+    },
     // L'ancienne adresse reste valable : des captures et des signets la portent.
     { path: '/cameras', redirect: '/securite' },
     { path: '/parametrage', name: 'parametrage', component: () => import('@/views/SettingsView.vue') },
@@ -48,7 +56,10 @@ router.beforeEach(async (to) => {
     return auth.connecte ? { path: '/' } : true;
   }
 
-  if (auth.connecte) return true;
+  if (auth.connecte) {
+    const role = to.meta.role as Role | undefined;
+    return !role || auth.peut(role) ? true : { path: '/' };
+  }
 
   // `redirect` garde en mémoire où l'on allait : un lien profond vers une
   // pièce doit y mener après la connexion, pas à l'accueil.

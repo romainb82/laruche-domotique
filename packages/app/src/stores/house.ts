@@ -8,6 +8,7 @@ import type {
   HouseConfig,
   ZoneConfig,
 } from '@domo/shared';
+import { http } from '@/stores/http';
 
 /**
  * Source de vérité côté interface.
@@ -25,27 +26,63 @@ export const useHouse = defineStore('house', () => {
 
   let socket: WebSocket | null = null;
   let retry: number | null = null;
+  let veille: number | null = null;
+  /** Vrai entre `connect()` et `disconnect()` : sinon, un lien fermé reste fermé. */
+  let voulu = false;
+  /** Nombre d'échecs consécutifs : fixe l'attente avant le prochain essai. */
+  let echecs = 0;
 
   // ------------------------------------------------------------- chargement
 
   async function load() {
-    config.value = await api<HouseConfig>('/api/config');
-    const snap = await api<{ connections: ConnectionStatus[]; states: DeviceState[] }>('/api/state');
+    config.value = await http<HouseConfig>('/api/config');
+    const snap = await http<{ connections: ConnectionStatus[]; states: DeviceState[] }>('/api/state');
     connections.value = snap.connections;
     states.value = Object.fromEntries(snap.states.map((s) => [s.id, s]));
   }
 
+  /**
+   * Le lien vivant avec la maison.
+   *
+   * Un seul socket à la fois : rappeler `connect()` pendant qu'un lien est
+   * ouvert ou en cours d'ouverture ne fait rien. La reprise attend de plus en
+   * plus longtemps après chaque échec (1 s, 2 s… jusqu'à 30 s, avec un peu de
+   * hasard pour que dix téléphones ne reviennent pas à la même seconde), et
+   * revient à 1 s dès qu'un lien tient.
+   *
+   * Le serveur parle toutes les 5 s (santé des canaux) : quinze secondes de
+   * silence veulent dire que le lien est mort sans FIN : un Pi débranché, un
+   * Wi-Fi qui a décroché : et on le referme nous-mêmes pour en rouvrir un.
+   * Sans cette veille, `connected` resterait vrai pendant des minutes.
+   */
   function connect() {
+    if (socket && socket.readyState <= WebSocket.OPEN) return;
+    if (retry) {
+      clearTimeout(retry);
+      retry = null;
+    }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    socket = new WebSocket(`${proto}://${location.host}/ws`);
+    const s = new WebSocket(`${proto}://${location.host}/ws`);
+    socket = s;
 
-    socket.onopen = () => {
+    s.onopen = () => {
       connected.value = true;
       error.value = null;
+      echecs = 0;
+      surveiller();
+      // Le socket donne les états ; la configuration, elle, peut avoir bougé
+      // pendant la coupure.
+      void load().catch(() => undefined);
     };
 
-    socket.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data as string);
+    s.onmessage = (ev) => {
+      surveiller();
+      let msg: any;
+      try {
+        msg = JSON.parse(ev.data as string);
+      } catch {
+        return;
+      }
       if (msg.type === 'connections') {
         connections.value = msg.connections;
       } else if (msg.type === 'snapshot' || msg.type === 'reload') {
@@ -53,18 +90,51 @@ export const useHouse = defineStore('house', () => {
         states.value = Object.fromEntries(
           (msg.states as DeviceState[]).map((s) => [s.id, s]),
         );
-        if (msg.type === 'reload') void load();
+        if (msg.type === 'reload') void load().catch(() => undefined);
       } else if (msg.type === 'state') {
         states.value = { ...states.value, [msg.state.id]: msg.state };
       }
     };
 
-    socket.onclose = () => {
+    s.onclose = () => {
+      if (socket !== s) return; // un lien plus récent a pris la place
+      socket = null;
       connected.value = false;
+      if (veille) clearTimeout(veille);
+      if (!voulu) return;
       // Une maison ne doit pas rester muette parce qu'un serveur a redémarré.
-      if (retry) clearTimeout(retry);
-      retry = window.setTimeout(connect, 2000);
+      echecs += 1;
+      const attente = Math.min(30_000, 1_000 * 2 ** Math.min(echecs - 1, 5)) * (0.8 + Math.random() * 0.4);
+      retry = window.setTimeout(connect, attente);
     };
+  }
+
+  function surveiller() {
+    if (veille) clearTimeout(veille);
+    veille = window.setTimeout(() => {
+      // Silence trop long : on force la reprise. `close()` déclenche `onclose`.
+      socket?.close();
+    }, 15_000);
+  }
+
+  /** Ferme le lien et n'essaie plus : à la déconnexion, ou quand la session a expiré. */
+  function disconnect() {
+    voulu = false;
+    if (retry) clearTimeout(retry);
+    if (veille) clearTimeout(veille);
+    retry = veille = null;
+    const s = socket;
+    socket = null;
+    s?.close();
+    connected.value = false;
+    states.value = {};
+    connections.value = [];
+    config.value = null;
+  }
+
+  function ouvrir() {
+    voulu = true;
+    connect();
   }
 
   // ---------------------------------------------------------------- lecture
@@ -100,86 +170,79 @@ export const useHouse = defineStore('house', () => {
 
   // ---------------------------------------------------------------- actions
 
+  /**
+   * Règle 2, tenue ici pour TOUTES les vues : une valeur périmée ne pilote
+   * rien, et on n'empile pas une commande sur une autre encore en cours.
+   * Les tuiles, le plan, le cadran et les raccourcis clavier passent tous par
+   * ces deux fonctions : c'est le seul endroit où la règle ne peut pas être
+   * oubliée.
+   */
+  function pilotable(id: string): string | null {
+    const s = states.value[id];
+    if (!s || s.health !== 'online') return 'Cet équipement ne donne plus de nouvelles : on ne le pilote pas à l’aveugle.';
+    if (s.pending) return 'Commande déjà en cours, on attend la réponse du matériel.';
+    return null;
+  }
+
   async function send(deviceId: string, command: Command) {
+    const refus = pilotable(deviceId);
+    if (refus) {
+      error.value = refus;
+      throw new Error(refus);
+    }
     // Aucune mise à jour optimiste : c'est le serveur qui dira ce qui s'est passé.
-    const res = await fetch(`/api/devices/${encodeURIComponent(deviceId)}/command`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(command),
-    });
-    if (!res.ok) {
-      if (await siSessionExpiree(res)) throw new Error('session expirée');
-      const body = await res.json().catch(() => ({ error: 'Commande refusée' }));
-      error.value = body.error ?? 'Commande refusée';
-      throw new Error(error.value ?? 'erreur');
+    try {
+      await http(`/api/devices/${encodeURIComponent(deviceId)}/command`, { method: 'POST', body: command });
+      error.value = null;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
     }
   }
 
   async function sendBulk(deviceIds: string[], command: Command) {
-    if (!deviceIds.length) return;
-    await fetch('/api/commands/bulk', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ deviceIds, command }),
-    });
+    // Les périmés et les « en cours » sont laissés de côté, et on le dit.
+    const retenus = deviceIds.filter((id) => !pilotable(id));
+    const ecartes = deviceIds.length - retenus.length;
+    if (!retenus.length) {
+      if (ecartes) error.value = 'Aucun de ces équipements ne peut être piloté pour le moment.';
+      return;
+    }
+    try {
+      const r = await http<{ ok: boolean; total: number; failed: number }>('/api/commands/bulk', {
+        method: 'POST',
+        body: { deviceIds: retenus, command },
+      });
+      const rates = r.failed + ecartes;
+      error.value = rates
+        ? `${rates} équipement${rates > 1 ? 's' : ''} sur ${deviceIds.length} n’${rates > 1 ? 'ont' : 'a'} pas été piloté${rates > 1 ? 's' : ''}.`
+        : null;
+    } catch (e) {
+      error.value = (e as Error).message;
+      throw e;
+    }
   }
 
   async function saveConfig(next: HouseConfig) {
-    const res = await fetch('/api/config', {
+    const body = await http<{ config: HouseConfig; warnings?: unknown[] }>('/api/config', {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(next),
+      body: next,
+      delaiMs: 30_000,
     });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.issues?.map((i: any) => i.message).join('\n') ?? 'Refusé');
     config.value = body.config;
     return body.warnings ?? [];
   }
 
   async function resetConfig() {
-    const res = await fetch('/api/config/reset', { method: 'POST' });
-    const body = await res.json();
+    const body = await http<{ config: HouseConfig }>('/api/config/reset', { method: 'POST', delaiMs: 30_000 });
     config.value = body.config;
   }
 
   return {
     config, states, connected, connections, error,
     zones, devices, scenes, planZones, offPlanZones,
-    load, connect, zone, devicesOf, stateOf,
-    send, sendBulk, saveConfig, resetConfig,
+    load, connect: ouvrir, disconnect, zone, devicesOf, stateOf,
+    send, sendBulk, pilotable, saveConfig, resetConfig,
   };
 });
 
-/**
- * Une session expirée ramène à la page de connexion.
- *
- * Sans ça, une session qui meurt pendant la nuit afficherait « serveur
- * injoignable » au réveil, alors que le serveur va parfaitement bien et qu'il
- * suffit de retaper son mot de passe. Le mensonge serait durable : rien ne
- * viendrait jamais le corriger.
- *
- * L'import est fait ICI et pas en tête de fichier, volontairement : le magasin
- * des comptes importe lui aussi des choses de l'application, et deux modules
- * qui s'importent l'un l'autre au chargement ne s'initialisent pas toujours
- * dans l'ordre qu'on croit.
- */
-async function siSessionExpiree(res: Response): Promise<boolean> {
-  if (res.status !== 401) return false;
-  const [{ useAuth }, { router }] = await Promise.all([
-    import('@/stores/auth'),
-    import('@/router'),
-  ]);
-  useAuth().expiree();
-  const ou = router.currentRoute.value.fullPath;
-  await router.replace({ path: '/connexion', query: ou === '/' ? {} : { redirect: ou } });
-  return true;
-}
-
-async function api<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    await siSessionExpiree(res);
-    throw new Error(`${url} → ${res.status}`);
-  }
-  return (await res.json()) as T;
-}

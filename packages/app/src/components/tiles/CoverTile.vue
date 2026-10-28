@@ -16,13 +16,14 @@ const house = useHouse();
 
 const state = computed(() => house.stateOf(props.device.id));
 const injoignable = computed(() => !state.value || state.value.health !== 'online');
+const pending = computed(() => state.value?.pending ?? false);
 const cover = computed(() => findCap(state.value, 'cover'));
 const position = computed(() => cover.value?.position ?? 0);
 const bouge = computed(() => cover.value?.moving ?? null);
 
 const drag = useTileDrag({
   valeur: () => position.value,
-  actionnable: () => !injoignable.value,
+  actionnable: () => !injoignable.value && !pending.value,
   onGlisser: (v) => void house.send(props.device.id, { kind: 'cover', position: v }),
   // Un toucher bascule entre les deux extremes : c'est le geste courant.
   onToucher: () => void house.send(props.device.id, {
@@ -30,7 +31,8 @@ const drag = useTileDrag({
   }),
 });
 
-const affiche = computed(() => drag.apercu.value ?? position.value);
+/** Un volet périmé ne montre pas de position : on ne sait plus où il est. */
+const affiche = computed(() => (injoignable.value ? 0 : (drag.apercu.value ?? position.value)));
 /** Part fermee : c'est elle qui donne la hauteur du tablier. */
 const ferme = computed(() => 100 - affiche.value);
 
@@ -46,11 +48,11 @@ const SLATS = 8;
     ]"
     role="slider"
     tabindex="0"
-    :aria-label="`${device.label}, ${affiche} % ouvert`"
+    :aria-label="injoignable ? `${device.label}, position inconnue` : `${device.label}, ${affiche} % ouvert`"
     :aria-valuenow="affiche" aria-valuemin="0" aria-valuemax="100"
     @pointerdown="drag.onPointerdown"
-    @keydown.up.prevent="house.send(device.id, { kind: 'cover', position: Math.min(100, position + 10) })"
-    @keydown.down.prevent="house.send(device.id, { kind: 'cover', position: Math.max(0, position - 10) })"
+    @keydown.up.prevent="!injoignable && !pending && house.send(device.id, { kind: 'cover', position: Math.min(100, position + 10) })"
+    @keydown.down.prevent="!injoignable && !pending && house.send(device.id, { kind: 'cover', position: Math.max(0, position - 10) })"
   >
     <!-- le jour, derriere -->
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-jour/35 to-jour/10" />

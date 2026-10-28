@@ -54,6 +54,8 @@ const mode = computed<Mode>(() => {
 });
 
 const climat = computed(() => findCap(house.stateOf(chauffage.value[0]?.id ?? ''), 'climate'));
+/** Un thermostat périmé ne se règle pas à l'aveugle, et sa consigne ne s'affiche pas. */
+const climatVivant = computed(() => house.stateOf(chauffage.value[0]?.id ?? '')?.health === 'online');
 
 /** Niveau moyen des lampes allumées : 0 si la pièce est éteinte. */
 const niveauLumiere = computed(() => {
@@ -80,8 +82,17 @@ let relache: number | null = null;
 function poserApercu(v: number) {
   apercu.value = v;
   if (relache) clearTimeout(relache);
-  relache = window.setTimeout(() => { apercu.value = null; }, 1400);
+  // L'aperçu meurt dès que le matériel parle (voir le `watch` ci-dessous), ou
+  // au plus tard après trois secondes : ce n'est PAS une mise à jour
+  // optimiste, juste le temps que la commande parte et revienne.
+  relache = window.setTimeout(() => { apercu.value = null; }, 3000);
 }
+// La première nouvelle du matériel efface l'aperçu : à partir de là, l'arc
+// montre ce que la maison fait vraiment, même si ce n'est pas ce qu'on a demandé.
+watch(
+  () => [climat.value?.setpoint, niveauLumiere.value, ouvertureVolets.value],
+  () => { apercu.value = null; },
+);
 
 const cadran = computed(() => {
   switch (mode.value) {
@@ -89,11 +100,12 @@ const cadran = computed(() => {
       const c = climat.value;
       const min = house.config?.heating.minSetpoint ?? 14;
       const max = house.config?.heating.maxSetpoint ?? 24;
-      const v = apercu.value ?? c?.setpoint ?? min;
+      const vivant = climatVivant.value;
+      const v = apercu.value ?? (vivant ? c?.setpoint : undefined) ?? min;
       return {
         valeur: v, min, max, pas: 0.5, unite: '°', teinte: 'glow' as const,
-        legende: c ? `${c.ambient.toFixed(1)}° mesurés` : 'hors ligne',
-        texte: v.toFixed(1), desactive: !c,
+        legende: c && vivant ? `${c.ambient.toFixed(1)}° mesurés` : 'pas de nouvelles',
+        texte: vivant ? v.toFixed(1) : '—', desactive: !vivant,
       };
     }
     case 'lumiere': {
@@ -225,6 +237,7 @@ const groupes = computed(
             :valeur="cadran.valeur" :min="cadran.min" :max="cadran.max" :pas="cadran.pas"
             :texte="cadran.texte" :unite="cadran.unite" :legende="cadran.legende"
             :teinte="cadran.teinte" :desactive="cadran.desactive"
+            @apercu="poserApercu"
             @update:valeur="reglerCadran"
           />
         </div>
