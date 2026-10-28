@@ -8,10 +8,72 @@ import Foundation
 public actor DomoClient {
     public let base: URL
     private let session: URLSession
+    /// Le jeton de session, porté en `Authorization: Bearer` sur chaque appel.
+    /// `nil` tant qu'on n'est pas connecté : le serveur répond alors 401.
+    public private(set) var jeton: String?
 
-    public init(base: URL, session: URLSession = .shared) {
+    public init(base: URL, jeton: String? = nil, session: URLSession = .shared) {
         self.base = base
+        self.jeton = jeton
         self.session = session
+    }
+
+    public func poser(jeton: String?) { self.jeton = jeton }
+
+    // MARK: Comptes
+
+    public struct EtatAuth: Decodable, Sendable {
+        public let installe: Bool
+        public let compte: Compte?
+    }
+
+    /// Faut-il créer le premier compte, se connecter, ou est-on déjà connu ?
+    /// Route ouverte : marche sans jeton, et dit si le jeton qu'on a est encore bon.
+    public func etatAuth() async throws -> EtatAuth {
+        try await get("/api/auth/etat")
+    }
+
+    /// Qui habite ici, pour choisir son visage. Vide si le serveur préfère ne rien dire.
+    public func habitants() async throws -> [Habitant] {
+        struct R: Decodable { let habitants: [Habitant] }
+        let r: R = try await get("/api/auth/habitants")
+        return r.habitants
+    }
+
+    public struct Ouverture: Decodable, Sendable {
+        public let compte: Compte
+        public let jeton: String
+    }
+
+    /// Se connecter en tapant son identifiant.
+    public func connexion(identifiant: String, motDePasse: String) async throws -> Ouverture {
+        struct Corps: Encodable { let identifiant: String; let motDePasse: String; let rester = true }
+        let o: Ouverture = try await post("/api/auth/login", body: Corps(identifiant: identifiant, motDePasse: motDePasse))
+        jeton = o.jeton
+        return o
+    }
+
+    /// Se connecter après avoir choisi son visage.
+    public func connexion(compteId: String, motDePasse: String) async throws -> Ouverture {
+        struct Corps: Encodable { let compteId: String; let motDePasse: String; let rester = true }
+        let o: Ouverture = try await post("/api/auth/login", body: Corps(compteId: compteId, motDePasse: motDePasse))
+        jeton = o.jeton
+        return o
+    }
+
+    /// Le tout premier compte, quand la maison n'en a encore aucun.
+    public func premierCompte(identifiant: String, nom: String, motDePasse: String) async throws -> Ouverture {
+        struct Corps: Encodable { let identifiant: String; let nom: String; let motDePasse: String }
+        let o: Ouverture = try await post("/api/auth/premier-compte", body: Corps(identifiant: identifiant, nom: nom, motDePasse: motDePasse))
+        jeton = o.jeton
+        return o
+    }
+
+    /// Ferme la session côté serveur ; le jeton local est oublié quoi qu'il arrive.
+    public func deconnexion() async {
+        struct R: Decodable { let ok: Bool }
+        let _: R? = try? await post("/api/auth/logout", body: EmptyBody())
+        jeton = nil
     }
 
     // MARK: Lecture
@@ -90,9 +152,25 @@ public actor DomoClient {
         return try await run(request)
     }
 
+    /// L'en-tête d'authentification, le même pour HTTP et pour le WebSocket.
+    static func autoriser(_ request: inout URLRequest, jeton: String?) {
+        if let jeton { request.setValue("Bearer \(jeton)", forHTTPHeaderField: "Authorization") }
+    }
+
     private func run<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await session.data(for: request)
+        var request = request
+        Self.autoriser(&request, jeton: jeton)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw DomoError.reseau
+        }
         guard let http = response as? HTTPURLResponse else { throw DomoError.reseau }
+        // 401 : la session n'existe plus (expirée, fermée depuis un autre
+        // appareil, mot de passe changé). Distinct des autres refus : l'app
+        // doit ramener à la connexion, pas afficher « le serveur a répondu 401 ».
+        if http.statusCode == 401 { throw DomoError.nonAuthentifie }
         guard (200..<300).contains(http.statusCode) else {
             throw DomoError.serveur(code: http.statusCode, message: Self.message(dans: data))
         }
@@ -112,6 +190,8 @@ public actor DomoClient {
 
 public enum DomoError: Error, LocalizedError, Sendable {
     case reseau
+    /// Pas de session valable : il faut se (re)connecter.
+    case nonAuthentifie
     case serveur(code: Int, message: String?)
     /// Le serveur a répondu quelque chose que l'app ne sait pas lire.
     case contrat(String)
@@ -121,6 +201,8 @@ public enum DomoError: Error, LocalizedError, Sendable {
         switch self {
         case .reseau:
             "Maison injoignable."
+        case .nonAuthentifie:
+            "Connexion requise."
         case .serveur(let code, let message):
             message ?? "Le serveur a répondu \(code)."
         case .contrat:

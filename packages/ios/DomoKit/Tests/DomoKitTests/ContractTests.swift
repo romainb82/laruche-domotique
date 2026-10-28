@@ -14,15 +14,54 @@ import XCTest
 final class ContractTests: XCTestCase {
 
     static let base = URL(string: "http://localhost:3001")!
-    private var client: DomoClient { DomoClient(base: Self.base) }
 
-    /// Le serveur est-il joignable ? Sinon on saute, sans crier.
+    /// Le client AUTHENTIFIÉ : les tests partagent une session ouverte une fois.
+    /// Mêmes variables que les scripts de vérification Node :
+    /// `RUCHE_IDENT` / `RUCHE_MDP`, sinon le compte « verif » du développement.
+    private static var jeton: String?
+    private var client: DomoClient { DomoClient(base: Self.base, jeton: Self.jeton) }
+
+    /// Le serveur tourne-t-il, et nous laisse-t-il entrer ?
+    ///
+    /// Deux cas, et il faut les distinguer : un serveur ABSENT fait sauter la
+    /// suite (on ne veut pas de rouge parce qu'on a oublié `npm run dev`), mais
+    /// un serveur présent qui REFUSE la connexion fait échouer. Avant, un 401
+    /// était pris pour une absence : la suite entière se sautait en silence et
+    /// paraissait verte alors que l'app ne pouvait plus rien lire.
     private func exigerCerveau() async throws {
-        var r = URLRequest(url: Self.base.appending(path: "/api/state"))
+        var r = URLRequest(url: Self.base.appending(path: "/api/auth/etat"))
         r.timeoutInterval = 2
         guard let (_, reponse) = try? await URLSession.shared.data(for: r),
               (reponse as? HTTPURLResponse)?.statusCode == 200 else {
             throw XCTSkip("Le cerveau ne tourne pas : lance `npm run dev` d'abord.")
+        }
+        if Self.jeton != nil { return }
+
+        let env = ProcessInfo.processInfo.environment
+        let identifiant = env["RUCHE_IDENT"] ?? "verif"
+        let motDePasse = env["RUCHE_MDP"] ?? "douze abeilles au grenier"
+        let anonyme = DomoClient(base: Self.base)
+        let etat = try await anonyme.etatAuth()
+        let ouverture: DomoClient.Ouverture
+        if etat.installe {
+            ouverture = try await anonyme.connexion(identifiant: identifiant, motDePasse: motDePasse)
+        } else {
+            // Base vierge : on crée le compte de vérification, comme `session.mjs`.
+            ouverture = try await anonyme.premierCompte(identifiant: identifiant, nom: "Vérification", motDePasse: motDePasse)
+        }
+        Self.jeton = ouverture.jeton
+    }
+
+    // MARK: Le contrat de session
+
+    func testUneRequeteSansJetonEstRefusee() async throws {
+        try await exigerCerveau()
+        let anonyme = DomoClient(base: Self.base)
+        do {
+            _ = try await anonyme.config()
+            XCTFail("la configuration ne doit pas se lire sans session")
+        } catch DomoError.nonAuthentifie {
+            // c'est ce qu'on attend
         }
     }
 
